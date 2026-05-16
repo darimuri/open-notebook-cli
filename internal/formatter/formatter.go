@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
-	"github.com/olekukonko/tablewriter"
+	"strings"
 )
 
 type Formatter struct {
@@ -44,22 +43,26 @@ func (f *Formatter) formatTable(w io.Writer, data interface{}) error {
 		return nil
 	}
 
-	table := tablewriter.NewWriter(w)
-
+	// Get headers
 	var headers []string
 	for key := range slice[0] {
 		headers = append(headers, key)
 	}
-	table.SetHeader(headers)
 
+	// Print header
+	fmt.Fprintln(w, strings.Join(headers, "\t"))
+
+	// Print separator
+	fmt.Fprintln(w, strings.Repeat("-", len(strings.Join(headers, "\t"))))
+
+	// Print rows
 	for _, row := range slice {
 		var values []string
 		for _, h := range headers {
 			values = append(values, row[h])
 		}
-		table.Append(values)
+		fmt.Fprintln(w, strings.Join(values, "\t"))
 	}
 
-	table.Render()
 	return nil
 }

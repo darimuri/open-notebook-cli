@@ -1,8 +1,6 @@
 package config
 
 import (
-	"os"
-
 	"github.com/spf13/viper"
 )
 
@@ -23,18 +21,15 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("api_url", "http://localhost:8080")
 	v.SetDefault("output", "table")
 
-	if configPath != "" {
-		v.SetConfigFile(configPath)
+	// Only read config file if path is explicitly provided
+	if configPath == "" {
+		// Try to find config in default paths, ignore error if not found
+		_ = v.ReadInConfig()
 	} else {
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-		v.AddConfigPath("$HOME/.config/open-notebook")
-		v.AddConfigPath("/etc/open-notebook")
-	}
-
-	err := v.ReadInConfig()
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+		v.SetConfigFile(configPath)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Config{
