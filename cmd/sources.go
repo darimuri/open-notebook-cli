@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/darimuri/open-notebook-cli/internal/api"
 )
 
 var sourcesCmd = &cobra.Command{
@@ -48,37 +51,67 @@ func init() {
 }
 
 func runSourcesList(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	var sources []api.SourceResponse
+	err := client.Get("/api/sources", &sources)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list sources: %w", err)
 	}
-	fmt.Printf("API: %s (sources list)\n", cfg.APIURL)
-	return nil
+
+	return outputJSON(sources)
 }
 
 func runSourcesUpload(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	// Read file content
+	file, err := os.Open(args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file: %w", err)
 	}
-	fmt.Printf("API: %s (sources upload: %s)\n", cfg.APIURL, args[0])
-	return nil
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// For now, just send as JSON - real implementation would use multipart
+	req := map[string]interface{}{
+		"filename": args[0],
+		"content":  string(content),
+	}
+	var result api.SourceResponse
+	err = client.Post("/api/sources/json", req, &result)
+	if err != nil {
+		return fmt.Errorf("failed to upload source: %w", err)
+	}
+
+	return outputJSON(result)
 }
 
 func runSourcesDownload(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	var source api.SourceResponse
+	err := client.Get("/api/sources/"+args[0]+"/download", &source)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to download source: %w", err)
 	}
-	fmt.Printf("API: %s (sources download: %s)\n", cfg.APIURL, args[0])
-	return nil
+
+	return outputJSON(source)
 }
 
 func runSourcesRetry(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	var result api.SourceResponse
+	err := client.Post("/api/sources/"+args[0]+"/retry", nil, &result)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to retry source: %w", err)
 	}
-	fmt.Printf("API: %s (sources retry: %s)\n", cfg.APIURL, args[0])
-	return nil
+
+	return outputJSON(result)
 }
+

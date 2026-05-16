@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/darimuri/open-notebook-cli/internal/api"
 )
 
 var notesCmd = &cobra.Command{
@@ -26,10 +27,17 @@ var notesGetCmd = &cobra.Command{
 }
 
 var notesCreateCmd = &cobra.Command{
-	Use:   "create [content]",
+	Use:   "create [notebook_id] [content]",
 	Short: "Create a new note",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	RunE:  runNotesCreate,
+}
+
+var notesUpdateCmd = &cobra.Command{
+	Use:   "update [note_id]",
+	Short: "Update a note",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runNotesUpdate,
 }
 
 var notesDeleteCmd = &cobra.Command{
@@ -43,42 +51,75 @@ func init() {
 	notesCmd.AddCommand(notesListCmd)
 	notesCmd.AddCommand(notesGetCmd)
 	notesCmd.AddCommand(notesCreateCmd)
+	notesCmd.AddCommand(notesUpdateCmd)
 	notesCmd.AddCommand(notesDeleteCmd)
 	rootCmd.AddCommand(notesCmd)
 }
 
 func runNotesList(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	var notes []api.NoteResponse
+	err := client.Get("/api/notes", &notes)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list notes: %w", err)
 	}
-	fmt.Printf("API: %s (notes list)\n", cfg.APIURL)
-	return nil
+
+	return outputJSON(notes)
 }
 
 func runNotesGet(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	var note api.NoteResponse
+	err := client.Get("/api/notes/"+args[0], &note)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get note: %w", err)
 	}
-	fmt.Printf("API: %s (notes get: %s)\n", cfg.APIURL, args[0])
-	return nil
+
+	return outputJSON(note)
 }
 
 func runNotesCreate(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
-	if err != nil {
-		return err
+	client := getClient()
+
+	req := api.NoteCreate{
+		NotebookID: args[0],
+		Content:    args[1],
 	}
-	fmt.Printf("API: %s (notes create: %s)\n", cfg.APIURL, args[0])
-	return nil
+	var note api.NoteResponse
+	err := client.Post("/api/notes", req, &note)
+	if err != nil {
+		return fmt.Errorf("failed to create note: %w", err)
+	}
+
+	return outputJSON(note)
+}
+
+func runNotesUpdate(cmd *cobra.Command, args []string) error {
+	client := getClient()
+
+	// For now, just update content from args
+	content := args[1]
+	req := api.NoteUpdate{Content: &content}
+	var note api.NoteResponse
+	err := client.Put("/api/notes/"+args[0], req, &note)
+	if err != nil {
+		return fmt.Errorf("failed to update note: %w", err)
+	}
+
+	return outputJSON(note)
 }
 
 func runNotesDelete(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	err := client.Delete("/api/notes/"+args[0], nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete note: %w", err)
 	}
-	fmt.Printf("API: %s (notes delete: %s)\n", cfg.APIURL, args[0])
+
+	fmt.Println("Note deleted successfully")
 	return nil
 }
+

@@ -1,0 +1,120 @@
+package api
+
+// Config response
+type ConfigResponse struct {
+	Version string `json:"version"`
+	Health   bool   `json:"health"`
+}
+
+// Notebook types
+type NotebookCreate struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+type NotebookUpdate struct {
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Archived    *bool   `json:"archived,omitempty"`
+}
+
+type NotebookResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Archived    bool   `json:"archived"`
+	Created     string `json:"created"`
+	Updated     string `json:"updated"`
+	SourceCount int    `json:"source_count"`
+	NoteCount   int    `json:"note_count"`
+}
+
+type NotebookDeletePreview struct {
+	NotebookID         string `json:"notebook_id"`
+	NotebookName       string `json:"notebook_name"`
+	NoteCount          int    `json:"note_count"`
+	ExclusiveSourceCount int   `json:"exclusive_source_count"`
+	SharedSourceCount  int    `json:"shared_source_count"`
+}
+
+type NotebookDeleteResponse struct {
+	Message       string `json:"message"`
+	DeletedNotes  int    `json:"deleted_notes"`
+	DeletedSources int   `json:"deleted_sources"`
+	UnlinkedSources int  `json:"unlinked_sources"`
+}
+
+// Note types
+type NoteCreate struct {
+	NotebookID string `json:"notebook_id"`
+	Content    string `json:"content"`
+	Metadata   string `json:"metadata,omitempty"`
+}
+
+type NoteUpdate struct {
+	Content  *string `json:"content,omitempty"`
+	Metadata *string `json:"metadata,omitempty"`
+}
+
+type NoteResponse struct {
+	ID         string `json:"id"`
+	NotebookID string `json:"notebook_id"`
+	Content    string `json:"content"`
+	Metadata   string `json:"metadata"`
+	Created    string `json:"created"`
+	Updated    string `json:"updated"`
+}
+
+// Source types
+type SourceResponse struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Status   string `json:"status"`
+	Size     int    `json:"size"`
+	Created  string `json:"created"`
+	Updated  string `json:"updated"`
+}
+
+// Search types
+type SearchRequest struct {
+	Query     string   `json:"query"`
+	NotebookIDs []string `json:"notebook_ids,omitempty"`
+	Limit     int      `json:"limit,omitempty"`
+}
+
+type SearchResponse struct {
+	Results []SearchResult `json:"results"`
+	Total   int            `json:"total"`
+}
+
+type SearchResult struct {
+	Type       string `json:"type"`
+	ID         string `json:"id"`
+	NotebookID string `json:"notebook_id"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+	Score      float64 `json:"score"`
+}
+
+// Ask types
+type AskRequest struct {
+	Question    string   `json:"question"`
+	NotebookIDs []string `json:"notebook_ids,omitempty"`
+}
+
+type AskResponse struct {
+	Answer    string   `json:"answer"`
+	Sources   []string `json:"sources"`
+	ModelUsed string   `json:"model_used"`
+}
+
+// Job types
+type JobResponse struct {
+	ID        string `json:"id"`
+	Type      string `json:"type"`
+	Status    string `json:"status"`
+	Created   string `json:"created"`
+	Updated   string `json:"updated"`
+	Result    any    `json:"result,omitempty"`
+}

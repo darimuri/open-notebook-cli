@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/darimuri/open-notebook-cli/internal/api"
 )
 
 var searchCmd = &cobra.Command{
@@ -41,28 +42,41 @@ func init() {
 }
 
 func runSearchSearch(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	req := api.SearchRequest{Query: args[0]}
+	var results api.SearchResponse
+	err := client.Post("/api/search", req, &results)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to search: %w", err)
 	}
-	fmt.Printf("API: %s (search: %s)\n", cfg.APIURL, args[0])
-	return nil
+
+	return outputJSON(results)
 }
 
 func runSearchAsk(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	req := api.AskRequest{Question: args[0]}
+	var answer api.AskResponse
+	err := client.Post("/api/search/ask", req, &answer)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to ask: %w", err)
 	}
-	fmt.Printf("API: %s (ask: %s)\n", cfg.APIURL, args[0])
-	return nil
+
+	return outputJSON(answer)
 }
 
 func runSearchSimpleAsk(cmd *cobra.Command, args []string) error {
-	cfg, err := loadConfig()
+	client := getClient()
+
+	req := api.AskRequest{Question: args[0]}
+	var answer api.AskResponse
+	err := client.Post("/api/search/ask/simple", req, &answer)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to ask: %w", err)
 	}
-	fmt.Printf("API: %s (simple-ask: %s)\n", cfg.APIURL, args[0])
-	return nil
+
+	return outputJSON(answer)
 }
+
