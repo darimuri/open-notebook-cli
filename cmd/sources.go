@@ -97,6 +97,13 @@ var sourcesStatusCmd = &cobra.Command{
 	RunE:  runSourcesStatus,
 }
 
+var sourcesEmbedCmd = &cobra.Command{
+	Use:   "embed [source_id]",
+	Short: "Embed a source for vector search",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runSourcesEmbed,
+}
+
 func init() {
 	sourcesCmd.AddCommand(sourcesListCmd)
 	sourcesCmd.AddCommand(sourcesAddCmd)
@@ -105,6 +112,7 @@ func init() {
 	sourcesCmd.AddCommand(sourcesRetryCmd)
 	sourcesCmd.AddCommand(sourcesInsightsCmd)
 	sourcesCmd.AddCommand(sourcesStatusCmd)
+	sourcesCmd.AddCommand(sourcesEmbedCmd)
 	rootCmd.AddCommand(sourcesCmd)
 
 	// Add command flags
@@ -188,9 +196,8 @@ func addTextSource(client *api.Client, text string) error {
 		req.Notebooks = []string{sourceNotebook}
 	}
 
-	if skipEmbed {
-		req.Embed = new(bool)
-	}
+	embed := !skipEmbed
+	req.Embed = &embed
 
 	var result api.SourceResponse
 	err := client.Post("/api/sources/json", req, &result)
@@ -252,9 +259,8 @@ func addSources(client *api.Client, urls []string) error {
 			req.Notebooks = []string{sourceNotebook}
 		}
 
-		if skipEmbed {
-			req.Embed = new(bool)
-		}
+		embed := !skipEmbed
+		req.Embed = &embed
 
 		var result api.SourceResponse
 		err := client.Post("/api/sources/json", req, &result)
@@ -323,9 +329,8 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 		if sourceNotebook != "" {
 			req.Notebooks = []string{sourceNotebook}
 		}
-		if skipEmbed {
-			req.Embed = new(bool)
-		}
+		embed := !skipEmbed
+		req.Embed = &embed
 
 		var result api.SourceResponse
 		err = client.Post("/api/sources/json", req, &result)
@@ -433,4 +438,22 @@ func runSourcesStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	return outputJSON(result)
+}
+
+func runSourcesEmbed(cmd *cobra.Command, args []string) error {
+	client := getClient()
+
+	req := api.EmbedRequest{
+		ItemID:   args[0],
+		ItemType: "source",
+	}
+
+	var result api.EmbedResponse
+	err := client.Post("/api/embed", req, &result)
+	if err != nil {
+		return fmt.Errorf("failed to embed source: %w", err)
+	}
+
+	fmt.Printf("Embedded: %s (%s)\n", result.ItemID, result.Message)
+	return nil
 }

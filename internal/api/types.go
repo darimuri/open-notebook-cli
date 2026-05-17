@@ -89,6 +89,20 @@ type SourceStatusResponse struct {
 	Message string `json:"message"`
 }
 
+// Embed types
+type EmbedRequest struct {
+	ItemID          string `json:"item_id"`
+	ItemType        string `json:"item_type"`
+	AsyncProcessing bool   `json:"async_processing"`
+}
+
+type EmbedResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	ItemID  string `json:"item_id"`
+	ItemType string `json:"item_type"`
+}
+
 // Search types
 type SearchRequest struct {
 	Query     string   `json:"query"`

@@ -87,6 +87,9 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 # Get source insights
 /open-notebook sources insights <source_id>
 
+# Embed a source for vector search
+/open-notebook sources embed <source_id>
+
 # Check source status
 /open-notebook sources status <source_id>
 ```
