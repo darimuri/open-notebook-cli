@@ -130,7 +130,7 @@ func runSearchAsk(cmd *cobra.Command, args []string) error {
 		req.NotebookIDs = []string{notebookID}
 	}
 	var answer api.AskResponse
-	err := client.Post("/api/search/ask/simple", req, &answer)
+	err := client.Post("/api/search/ask", req, &answer)
 	if err != nil {
 		return fmt.Errorf("failed to ask: %w", err)
 	}
