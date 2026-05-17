@@ -43,10 +43,11 @@ jobs:
           ls -la "$name"
 
       - name: Upload Release Asset
-        uses: softprops/upload-gh-release@2
+        uses: ncipollo/release-action@v1
         with:
-          files: |
+          artifacts: |
             open-notebook-${{ matrix.goos }}-${{ matrix.goarch }}*.exe
             open-notebook-${{ matrix.goos }}-${{ matrix.goarch }}
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
+          token: ${{ secrets.GITHUB_TOKEN }}
