@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/spf13/viper"
 )
 
@@ -14,16 +16,18 @@ func Load(configPath string) (*Config, error) {
 	v := viper.New()
 
 	v.SetEnvPrefix("OPEN_NOTEBOOK")
-	v.BindEnv("api_url", "OPEN_NOTEBOOK_API_URL")
-	v.BindEnv("api_key", "OPEN_NOTEBOOK_API_KEY")
-	v.BindEnv("output", "OPEN_NOTEBOOK_OUTPUT")
+	v.BindEnv("api_url", "API_URL")
+	v.BindEnv("api_key", "API_KEY")
+	v.BindEnv("output", "OUTPUT")
 
 	v.SetDefault("api_url", "http://localhost:8080")
 	v.SetDefault("output", "table")
 
-	// Only read config file if path is explicitly provided
 	if configPath == "" {
-		// Try to find config in default paths, ignore error if not found
+		home, _ := os.UserHomeDir()
+		v.AddConfigPath(home + "/.config/open-notebook")
+		v.SetConfigName("config")
+		v.SetConfigType("yaml")
 		_ = v.ReadInConfig()
 	} else {
 		v.SetConfigFile(configPath)
@@ -33,8 +37,8 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	return &Config{
-		APIURL: v.GetString("api_url"),
-		APIKey: v.GetString("api_key"),
+		APIURL: v.GetString("api-url"),
+		APIKey: v.GetString("api-key"),
 		Output: v.GetString("output"),
 	}, nil
 }
