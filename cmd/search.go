@@ -52,10 +52,10 @@ func init() {
 	searchCmd.AddCommand(searchSimpleAskCmd)
 	rootCmd.AddCommand(searchCmd)
 
-	searchCmd.Flags().StringVarP(&searchNotebook, "notebook", "n", "", "Notebook ID to search in")
-	searchCmd.Flags().StringVar(&strategyModel, "strategy-model", "", "Model ID for query strategy")
-	searchCmd.Flags().StringVar(&answerModel, "answer-model", "", "Model ID for individual answers")
-	searchCmd.Flags().StringVar(&finalAnswerModel, "final-answer-model", "", "Model ID for final answer")
+	searchCmd.PersistentFlags().StringVarP(&searchNotebook, "notebook", "n", "", "Notebook ID to search in")
+	searchCmd.PersistentFlags().StringVar(&strategyModel, "strategy-model", "", "Model ID for query strategy")
+	searchCmd.PersistentFlags().StringVar(&answerModel, "answer-model", "", "Model ID for individual answers")
+	searchCmd.PersistentFlags().StringVar(&finalAnswerModel, "final-answer-model", "", "Model ID for final answer")
 }
 
 func loadDefaultModels() error {

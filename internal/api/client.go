@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/darimuri/open-notebook-cli/internal/auth"
 )
@@ -14,6 +15,7 @@ type Client struct {
 	baseURL    string
 	auth       *auth.Middleware
 	httpClient *http.Client
+	debug      bool
 }
 
 func NewClient(baseURL string, authMiddleware *auth.Middleware) *Client {
@@ -21,6 +23,16 @@ func NewClient(baseURL string, authMiddleware *auth.Middleware) *Client {
 		baseURL:    baseURL,
 		auth:       authMiddleware,
 		httpClient: http.DefaultClient,
+		debug:      false,
+	}
+}
+
+func NewClientWithDebug(baseURL string, authMiddleware *auth.Middleware, debug bool) *Client {
+	return &Client{
+		baseURL:    baseURL,
+		auth:       authMiddleware,
+		httpClient: http.DefaultClient,
+		debug:      debug,
 	}
 }
 
@@ -36,6 +48,9 @@ func (c *Client) NewRequest(method, path string, body interface{}) (*http.Reques
 			return nil, err
 		}
 		reqBody = bytes.NewBuffer(data)
+		if c.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG: request body: %s\n", string(data))
+		}
 	}
 
 	req, err := http.NewRequest(method, c.baseURL+path, reqBody)
@@ -46,6 +61,10 @@ func (c *Client) NewRequest(method, path string, body interface{}) (*http.Reques
 	req.Header.Set("Content-Type", "application/json")
 	c.auth.AddAuth(req)
 
+	if c.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: request headers: %v\n", req.Header)
+	}
+
 	return req, nil
 }
 
@@ -55,6 +74,10 @@ func (c *Client) Do(req *http.Request, v interface{}) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if c.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: %s %s -> %d\n", req.Method, req.URL.Path, resp.StatusCode)
+	}
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("API error: %d", resp.StatusCode)

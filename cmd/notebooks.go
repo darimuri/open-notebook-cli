@@ -90,7 +90,7 @@ func init() {
 func getClient() *api.Client {
 	cfg, _ := loadConfig()
 	authMiddleware := auth.NewMiddleware(cfg.APIKey)
-	return api.NewClient(cfg.APIURL, authMiddleware)
+	return api.NewClientWithDebug(cfg.APIURL, authMiddleware, debug)
 }
 
 func runNotebooksList(cmd *cobra.Command, args []string) error {

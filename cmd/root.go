@@ -14,6 +14,7 @@ var (
 	apiURL    string
 	apiKey    string
 	notebook  string
+	debug     bool
 )
 
 var rootCmd = &cobra.Command{
@@ -35,6 +36,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&apiURL, "api-url", "", "API server URL")
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "API key")
 	rootCmd.PersistentFlags().StringVar(&notebook, "notebook", "", "default notebook ID")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "enable debug output")
 
 	rootCmd.AddCommand(notebooksCmd)
 	rootCmd.AddCommand(notesCmd)
