@@ -1,14 +1,7 @@
 ---
 name: open-notebook
 description: CLI tool for Open Notebook API - Manage notebooks, sources, search, and chat with your research materials
-triggers:
-  - /open-notebook
-  - open-notebook notebooks
-  - open-notebook sources
-  - open-notebook search
-  - open-notebook chat
-  - notebook management
-  - source management
+trigger: /open-notebook
 ---
 
 # Open Notebook
