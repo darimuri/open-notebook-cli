@@ -111,14 +111,18 @@ type SearchResult struct {
 
 // Ask types
 type AskRequest struct {
-	Question    string   `json:"question"`
-	NotebookIDs []string `json:"notebook_ids,omitempty"`
+	Question          string   `json:"question"`
+	StrategyModel     string   `json:"strategy_model"`
+	AnswerModel       string   `json:"answer_model"`
+	FinalAnswerModel  string   `json:"final_answer_model"`
+	NotebookIDs       []string `json:"notebook_ids,omitempty"`
 }
 
 type AskResponse struct {
 	Answer    string   `json:"answer"`
-	Sources   []string `json:"sources"`
-	ModelUsed string   `json:"model_used"`
+	Question  string   `json:"question"`
+	Sources   []string `json:"sources,omitempty"`
+	ModelUsed string   `json:"model_used,omitempty"`
 }
 
 // Job types
@@ -129,4 +133,15 @@ type JobResponse struct {
 	Created   string `json:"created"`
 	Updated   string `json:"updated"`
 	Result    any    `json:"result,omitempty"`
+}
+
+// Model types
+type ModelResponse struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Provider   string `json:"provider"`
+	Type       string `json:"type"`
+	Credential string `json:"credential"`
+	Created    string `json:"created"`
+	Updated    string `json:"updated"`
 }

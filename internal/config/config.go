@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	APIURL  string
-	APIKey  string
-	Output  string
+	APIURL    string
+	APIKey    string
+	Output    string
+	Notebook  string
 }
 
 func Load(configPath string) (*Config, error) {
@@ -37,8 +38,9 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	return &Config{
-		APIURL: v.GetString("api-url"),
-		APIKey: v.GetString("api-key"),
-		Output: v.GetString("output"),
+		APIURL:   v.GetString("api-url"),
+		APIKey:   v.GetString("api-key"),
+		Output:   v.GetString("output"),
+		Notebook: v.GetString("notebook"),
 	}, nil
 }

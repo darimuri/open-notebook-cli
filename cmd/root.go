@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	cfgFile string
-	output  string
-	apiURL  string
-	apiKey  string
+	cfgFile   string
+	output    string
+	apiURL    string
+	apiKey    string
+	notebook  string
 )
 
 var rootCmd = &cobra.Command{
@@ -33,6 +34,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "table", "output format (table, json)")
 	rootCmd.PersistentFlags().StringVar(&apiURL, "api-url", "", "API server URL")
 	rootCmd.PersistentFlags().StringVar(&apiKey, "api-key", "", "API key")
+	rootCmd.PersistentFlags().StringVar(&notebook, "notebook", "", "default notebook ID")
 
 	rootCmd.AddCommand(notebooksCmd)
 	rootCmd.AddCommand(notesCmd)
@@ -53,6 +55,17 @@ func loadConfig() (*config.Config, error) {
 	if apiKey != "" {
 		cfg.APIKey = apiKey
 	}
+	if notebook != "" {
+		cfg.Notebook = notebook
+	}
 
 	return cfg, nil
+}
+
+func getDefaultNotebook() string {
+	cfg, err := config.Load(cfgFile)
+	if err != nil {
+		return ""
+	}
+	return cfg.Notebook
 }
