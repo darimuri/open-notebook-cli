@@ -4,6 +4,8 @@ CLI tool for Open Notebook API - Research Assistant.
 
 ## Installation
 
+### CLI Only
+
 ```bash
 go install github.com/darimuri/open-notebook-cli@latest
 ```
@@ -14,6 +16,22 @@ Or build from source:
 git clone https://github.com/darimuri/open-notebook-cli.git
 cd open-notebook-cli
 go build -o open-notebook-cli ./main.go
+```
+
+### Claude Code Skill Installation
+
+Install the Open Notebook skill for use in Claude Code:
+
+```bash
+skill install github.com/darimuri/open-notebook-cli//skills/open-notebook
+```
+
+After installation, you can use `/open-notebook` commands directly in Claude Code:
+
+```bash
+/open-notebook notebooks list
+/open-notebook sources add -r https://docs.site.com
+/open-notebook search ask "What is machine learning?"
 ```
 
 ## Configuration
@@ -69,11 +87,20 @@ open-notebook-cli notebooks create "My Notebook"
 # Update a notebook
 open-notebook-cli notebooks update <notebook_id> "New Name"
 
-# Delete a notebook
+# Delete a notebook (sources become unattached)
 open-notebook-cli notebooks delete <notebook_id>
+
+# Delete a notebook and its exclusive sources
+open-notebook-cli notebooks delete --delete-sources <notebook_id>
 
 # Preview what will be deleted
 open-notebook-cli notebooks delete-preview <notebook_id>
+
+# Add source to notebook
+open-notebook-cli notebooks add-source <notebook_id> <source_id>
+
+# Remove source from notebook
+open-notebook-cli notebooks remove-source <notebook_id> <source_id>
 ```
 
 ### Notes
@@ -101,14 +128,41 @@ open-notebook-cli notes delete <note_id>
 # List all sources
 open-notebook-cli sources list
 
-# Upload a source
-open-notebook-cli sources upload /path/to/file
+# Add a single URL
+open-notebook-cli sources add https://example.com/article
+
+# Add multiple URLs
+open-notebook-cli sources add https://site.com/page1 https://site.com/page2
+
+# Add with recursive crawling (all internal links)
+open-notebook-cli sources add -r https://docs.site.com/guide
+
+# Add with depth limit
+open-notebook-cli sources add -r --depth 3 https://docs.site.com/guide
+
+# Add from file (one URL per line)
+open-notebook-cli sources add --file urls.txt
+
+# Add text content
+open-notebook-cli sources add --text "Important notes"
+
+# Add to specific notebook
+open-notebook-cli sources add -n <notebook_id> https://example.com
+
+# Upload a file
+open-notebook-cli sources upload /path/to/file.pdf
 
 # Download a source
 open-notebook-cli sources download <source_id>
 
 # Retry a failed source
 open-notebook-cli sources retry <source_id>
+
+# Get source insights
+open-notebook-cli sources insights <source_id>
+
+# Check source status
+open-notebook-cli sources status <source_id>
 ```
 
 ### Search
@@ -122,16 +176,6 @@ open-notebook-cli search ask "What is machine learning?"
 
 # Simple ask (quick answer)
 open-notebook-cli search simple "What is AI?"
-```
-
-### Skills
-
-```bash
-# List available skills
-open-notebook-cli skills list
-
-# Invoke a skill
-open-notebook-cli skills invoke brainstorming
 ```
 
 ## Output Formats
@@ -168,19 +212,36 @@ open-notebook-cli notebooks list --output json
 
 ## Examples
 
+### Research Workflow
+
 ```bash
-# Use a different API server
-open-notebook-cli --api-url http://192.168.1.100:8080 notebooks list
+# 1. Create a research notebook
+open-notebook-cli notebooks create "ML Papers Review"
 
-# Use API key authentication
-open-notebook-cli --api-key my-secret-key notebooks list
+# 2. Add sources recursively from documentation
+open-notebook-cli sources add -r --depth 2 https://docs.site.com
 
-# Use environment variable
-export OPEN_NOTEBOOK_API_KEY=my-secret-key
-open-notebook-cli notebooks list
+# 3. Ask questions about the sources
+open-notebook-cli search ask "What are the main topics covered?"
 
-# Get JSON output
-open-notebook-cli notebooks list --output json
+# 4. Add notes
+open-notebook-cli notes create <notebook_id> "Key insight: The model uses..."
+
+# 5. Check notebook status
+open-notebook-cli notebooks get <notebook_id>
+```
+
+### Source Management
+
+```bash
+# Add multiple URLs from file
+open-notebook-cli sources add --file paper-urls.txt
+
+# Crawl entire documentation site
+open-notebook-cli sources add -r --depth 5 https://docs.site.com
+
+# Link sources to notebooks
+open-notebook-cli notebooks add-source <notebook_id> <source_id>
 ```
 
 ## Development
@@ -218,7 +279,11 @@ open-notebook-cli/
 │   ├── api/           # API client
 │   ├── auth/          # Auth middleware
 │   ├── config/        # Config loading
+│   ├── crawler/       # HTML link extraction
 │   └── formatter/      # Output formatter
+├── skills/
+│   └── open-notebook/ # Claude Code skill
+│       └── SKILL.md    # Skill definition
 ├── tests/
 │   ├── unit/          # Unit tests
 │   └── integration/   # Integration tests
