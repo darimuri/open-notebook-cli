@@ -8,6 +8,10 @@ import (
 	"github.com/darimuri/open-notebook-cli/internal/auth"
 )
 
+var (
+	deleteSources bool
+)
+
 var notebooksCmd = &cobra.Command{
 	Use:   "notebooks",
 	Short: "Manage notebooks",
@@ -55,6 +59,20 @@ var notebooksDeletePreviewCmd = &cobra.Command{
 	RunE:  runNotebooksDeletePreview,
 }
 
+var notebooksAddSourceCmd = &cobra.Command{
+	Use:   "add-source [notebook_id] [source_id]",
+	Short: "Add a source to a notebook",
+	Args:  cobra.ExactArgs(2),
+	RunE:  runNotebooksAddSource,
+}
+
+var notebooksRemoveSourceCmd = &cobra.Command{
+	Use:   "remove-source [notebook_id] [source_id]",
+	Short: "Remove a source from a notebook",
+	Args:  cobra.ExactArgs(2),
+	RunE:  runNotebooksRemoveSource,
+}
+
 func init() {
 	notebooksCmd.AddCommand(notebooksListCmd)
 	notebooksCmd.AddCommand(notebooksGetCmd)
@@ -62,7 +80,11 @@ func init() {
 	notebooksCmd.AddCommand(notebooksUpdateCmd)
 	notebooksCmd.AddCommand(notebooksDeleteCmd)
 	notebooksCmd.AddCommand(notebooksDeletePreviewCmd)
+	notebooksCmd.AddCommand(notebooksAddSourceCmd)
+	notebooksCmd.AddCommand(notebooksRemoveSourceCmd)
 	rootCmd.AddCommand(notebooksCmd)
+
+	notebooksDeleteCmd.Flags().BoolVar(&deleteSources, "delete-sources", false, "Delete exclusive sources when deleting notebook")
 }
 
 func getClient() *api.Client {
@@ -111,7 +133,10 @@ func runNotebooksCreate(cmd *cobra.Command, args []string) error {
 func runNotebooksUpdate(cmd *cobra.Command, args []string) error {
 	client := getClient()
 
-	// For now, just update name from args
+	if len(args) < 2 {
+		return fmt.Errorf("usage: notebooks update [notebook_id] [new_name]")
+	}
+
 	name := args[1]
 	req := api.NotebookUpdate{Name: &name}
 	var notebook api.NotebookResponse
@@ -127,7 +152,11 @@ func runNotebooksDelete(cmd *cobra.Command, args []string) error {
 	client := getClient()
 
 	var result api.NotebookDeleteResponse
-	err := client.Delete("/api/notebooks/"+args[0], &result)
+	path := "/api/notebooks/" + args[0]
+	if deleteSources {
+		path += "?delete_exclusive_sources=true"
+	}
+	err := client.Delete(path, &result)
 	if err != nil {
 		return fmt.Errorf("failed to delete notebook: %w", err)
 	}
@@ -147,3 +176,30 @@ func runNotebooksDeletePreview(cmd *cobra.Command, args []string) error {
 	return outputJSON(preview)
 }
 
+func runNotebooksAddSource(cmd *cobra.Command, args []string) error {
+	client := getClient()
+
+	notebookID := args[0]
+	sourceID := args[1]
+	var result any
+	err := client.Post("/api/notebooks/"+notebookID+"/sources/"+sourceID, nil, &result)
+	if err != nil {
+		return fmt.Errorf("failed to add source to notebook: %w", err)
+	}
+
+	return outputJSON(result)
+}
+
+func runNotebooksRemoveSource(cmd *cobra.Command, args []string) error {
+	client := getClient()
+
+	notebookID := args[0]
+	sourceID := args[1]
+	var result any
+	err := client.Delete("/api/notebooks/"+notebookID+"/sources/"+sourceID, &result)
+	if err != nil {
+		return fmt.Errorf("failed to remove source from notebook: %w", err)
+	}
+
+	return outputJSON(result)
+}
