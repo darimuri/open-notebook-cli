@@ -8,15 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos:
-          - linux
-          - darwin
-          - windows
-        goarch:
-          - amd64
-          - arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -28,26 +19,58 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
-      - name: Build
+      - name: Build Linux amd64
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          GOOS: linux
+          GOARCH: amd64
           VERSION: ${{ github.ref_name }}
-        run: |
-          ext=""
-          if [ "$GOOS" = "windows" ]; then
-            ext=".exe"
-          fi
-          name="open-notebook-${GOOS}-${GOARCH}$ext"
-          go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o "$name" ./main.go
-          ls -la "$name"
+        run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-linux-amd64 ./main.go
+
+      - name: Build Linux arm64
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          VERSION: ${{ github.ref_name }}
+        run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-linux-arm64 ./main.go
+
+      - name: Build Darwin amd64
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          VERSION: ${{ github.ref_name }}
+        run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-darwin-amd64 ./main.go
+
+      - name: Build Darwin arm64
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+          VERSION: ${{ github.ref_name }}
+        run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-darwin-arm64 ./main.go
+
+      - name: Build Windows amd64
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          VERSION: ${{ github.ref_name }}
+        run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-windows-amd64.exe ./main.go
+
+      - name: Build Windows arm64
+        env:
+          GOOS: windows
+          GOARCH: arm64
+          VERSION: ${{ github.ref_name }}
+        run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-windows-arm64.exe ./main.go
 
       - name: Upload Release Asset
         uses: ncipollo/release-action@v1
         with:
           artifacts: |
-            open-notebook-${{ matrix.goos }}-${{ matrix.goarch }}*.exe
-            open-notebook-${{ matrix.goos }}-${{ matrix.goarch }}
+            open-notebook-linux-amd64
+            open-notebook-linux-arm64
+            open-notebook-darwin-amd64
+            open-notebook-darwin-arm64
+            open-notebook-windows-amd64.exe
+            open-notebook-windows-arm64.exe
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           token: ${{ secrets.GITHUB_TOKEN }}
