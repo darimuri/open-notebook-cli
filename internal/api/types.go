@@ -155,3 +155,25 @@ type DefaultModelsResponse struct {
 	DefaultEmbeddingModel      string `json:"default_embedding_model"`
 	DefaultToolsModel          string `json:"default_tools_model"`
 }
+
+type CredentialResponse struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Provider        string   `json:"provider"`
+	Modalities      []string `json:"modalities"`
+	BaseURL         string   `json:"base_url"`
+	Endpoint        string   `json:"endpoint"`
+	APIVersion      string   `json:"api_version"`
+	EndpointLLM    string   `json:"endpoint_llm"`
+	EndpointEmbed  string   `json:"endpoint_embedding"`
+	EndpointSTT     string   `json:"endpoint_stt"`
+	EndpointTTS     string   `json:"endpoint_tts"`
+	Project         string   `json:"project"`
+	Location        string   `json:"location"`
+	CredentialsPath string   `json:"credentials_path"`
+	HasAPIKey       bool     `json:"has_api_key"`
+	Created         string   `json:"created"`
+	Updated         string   `json:"updated"`
+	ModelCount      int      `json:"model_count"`
+	DecryptionError string   `json:"decryption_error"`
+}

@@ -126,6 +126,16 @@ open-notebook search simple "Summarize the key points"
 /open-notebook notes delete <note_id>
 ```
 
+### Config Backup & Restore
+
+```bash
+# Backup models, credentials, and defaults to a directory
+/open-notebook config backup <output_dir>
+
+# Restore from backup directory
+/open-notebook config restore <input_dir>
+```
+
 ## CLI Installation
 
 ### From source
