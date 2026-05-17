@@ -76,6 +76,18 @@ type SourceResponse struct {
 	Updated  string `json:"updated"`
 }
 
+type SourceCreate struct {
+	Notebooks []string `json:"notebooks,omitempty"`
+	Type     string   `json:"type"`
+	URL      string   `json:"url,omitempty"`
+	Content  string   `json:"content,omitempty"`
+}
+
+type SourceStatusResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 // Search types
 type SearchRequest struct {
 	Query     string   `json:"query"`
