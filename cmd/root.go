@@ -15,12 +15,14 @@ var (
 	apiKey    string
 	notebook  string
 	debug     bool
+	version   = "dev"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "open-notebook",
 	Short: "CLI for Open Notebook API",
 	Long:  `CLI tool for Open Notebook - Research Assistant API`,
+	Version: version,
 }
 
 func Execute() {

@@ -160,6 +160,14 @@ go build -o open-notebook ./main.go
 --notebook string   Default notebook ID
 --debug             Enable debug output
 -o, --output string Output format (table, json)
+--version           Show version
+```
+
+### Update
+
+```bash
+# Update to the latest version
+/open-notebook update
 ```
 
 ### Configuration
