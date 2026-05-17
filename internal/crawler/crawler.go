@@ -31,6 +31,23 @@ func ExtractLinks(baseURL string, htmlContent string) ([]Link, error) {
 	return links, nil
 }
 
+var ignoredExtensions = []string{
+	".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico",
+	".pdf", ".zip", ".tar", ".gz", ".rar",
+	".css", ".js", ".map",
+	".mp4", ".avi", ".mov", ".mp3", ".wav",
+}
+
+func isAssetURL(rawURL string) bool {
+	rawURL = strings.ToLower(rawURL)
+	for _, ext := range ignoredExtensions {
+		if strings.HasSuffix(rawURL, ext) {
+			return true
+		}
+	}
+	return false
+}
+
 func extractLinks(n *nethtml.Node, base *url.URL, links *[]Link) {
 	if n.Type == nethtml.ElementNode && (n.Data == "a" || n.Data == "link") {
 		for _, attr := range n.Attr {
@@ -50,6 +67,11 @@ func extractLinks(n *nethtml.Node, base *url.URL, links *[]Link) {
 
 				// Normalize URL (remove fragments, trailing slashes)
 				absoluteURL = normalizeURL(absoluteURL)
+
+				// Skip asset URLs (images, PDFs, etc.)
+				if isAssetURL(absoluteURL) {
+					continue
+				}
 
 				// Check if internal (same domain)
 				isInternal := parsedURL.Host == "" || parsedURL.Host == base.Host
