@@ -43,7 +43,7 @@ jobs:
           ls -la "$name"
 
       - name: Upload Release Asset
-        uses: softprops/upload-gh-release@v2
+        uses: softprops/upload-gh-release@2
         with:
           files: |
             open-notebook-${{ matrix.goos }}-${{ matrix.goarch }}*.exe
