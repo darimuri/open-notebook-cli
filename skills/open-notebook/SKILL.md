@@ -72,6 +72,9 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 # Add to specific notebook
 /open-notebook sources add -n <notebook_id> https://example.com
 
+# Add URL but skip embedding (for bulk import)
+/open-notebook sources add --skip-embed https://example.com
+
 # Upload a file
 /open-notebook sources upload /path/to/file.pdf
 

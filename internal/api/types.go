@@ -81,6 +81,7 @@ type SourceCreate struct {
 	Type     string   `json:"type"`
 	URL      string   `json:"url,omitempty"`
 	Content  string   `json:"content,omitempty"`
+	Embed    *bool    `json:"embed,omitempty"`
 }
 
 type SourceStatusResponse struct {

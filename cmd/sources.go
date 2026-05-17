@@ -18,6 +18,7 @@ var (
 	maxDepth       int
 	sourceNotebook string
 	sourceFile     string
+	skipEmbed      bool
 )
 
 var sourcesCmd = &cobra.Command{
@@ -112,6 +113,7 @@ func init() {
 	sourcesAddCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Notebook ID to add sources to")
 	sourcesAddCmd.Flags().StringVarP(&sourceFile, "file", "f", "", "Read URLs from file (one per line)")
 	sourcesAddCmd.Flags().String("text", "", "Add text content as source")
+	sourcesAddCmd.Flags().BoolVar(&skipEmbed, "skip-embed", false, "Skip embedding (default: embed)")
 }
 
 func runSourcesList(cmd *cobra.Command, args []string) error {
@@ -186,6 +188,10 @@ func addTextSource(client *api.Client, text string) error {
 		req.Notebooks = []string{sourceNotebook}
 	}
 
+	if skipEmbed {
+		req.Embed = new(bool)
+	}
+
 	var result api.SourceResponse
 	err := client.Post("/api/sources/json", req, &result)
 	if err != nil {
@@ -244,6 +250,10 @@ func addSources(client *api.Client, urls []string) error {
 
 		if sourceNotebook != "" {
 			req.Notebooks = []string{sourceNotebook}
+		}
+
+		if skipEmbed {
+			req.Embed = new(bool)
 		}
 
 		var result api.SourceResponse
@@ -312,6 +322,9 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 		}
 		if sourceNotebook != "" {
 			req.Notebooks = []string{sourceNotebook}
+		}
+		if skipEmbed {
+			req.Embed = new(bool)
 		}
 
 		var result api.SourceResponse
