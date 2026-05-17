@@ -94,11 +94,17 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 # Search notebooks
 /open-notebook search search "machine learning"
 
-# Ask a question (detailed response)
-/open-notebook search ask "What is the main contribution of this paper?"
+# Ask a question (uses default model from API)
+open-notebook search ask "What is the main contribution of this paper?"
 
-# Simple ask (quick answer)
-/open-notebook search simple "Summarize the key points"
+# Ask with specific notebook
+open-notebook search --notebook <notebook_id> ask "What is covered?"
+
+# Ask with specific models
+open-notebook search --strategy-model model:xxx --answer-model model:xxx --final-answer-model model:xxx ask "question"
+
+# Simple ask (non-streaming response)
+open-notebook search simple "Summarize the key points"
 ```
 
 ### Notes
@@ -126,8 +132,18 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 ```bash
 git clone https://github.com/darimuri/open-notebook-cli.git
 cd open-notebook-cli
-go build -o open-notebook-cli ./main.go
-# Add to PATH or use ./open-notebook-cli
+go build -o open-notebook ./main.go
+# Add to PATH or use ./open-notebook
+```
+
+### Global Flags
+```
+--api-url string     API server URL
+--api-key string    API key for authentication
+--config string     Config file path
+--notebook string   Default notebook ID
+--debug             Enable debug output
+-o, --output string Output format (table, json)
 ```
 
 ### Configuration
@@ -138,6 +154,11 @@ Environment variables:
 - `OPEN_NOTEBOOK_OUTPUT` - Default output format (table or json)
 
 Config file: `~/.config/open-notebook/config.yaml`
+
+```yaml
+api-url: "https://open-notebook.darimuri.me"
+notebook: "notebook:trzgg4xyju0awzcfltrp"  # default notebook ID
+```
 
 ## Examples
 

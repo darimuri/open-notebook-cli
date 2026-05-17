@@ -63,16 +63,28 @@ func loadDefaultModels() error {
 		return nil
 	}
 	client := getClient()
+
+	// Get default models from API
+	var defaults api.DefaultModelsResponse
+	if err := client.Get("/api/models/defaults", &defaults); err == nil && defaults.DefaultChatModel != "" {
+		defaultModels.strategyModel = defaults.DefaultChatModel
+		defaultModels.answerModel = defaults.DefaultChatModel
+		defaultModels.finalAnswerModel = defaults.DefaultChatModel
+		modelsLoaded = true
+		return nil
+	}
+
+	// Fallback: get all models and pick last language model
 	var models []api.ModelResponse
 	if err := client.Get("/api/models", &models); err != nil {
 		return err
 	}
-	for _, m := range models {
+	for i := len(models) - 1; i >= 0; i-- {
+		m := models[i]
 		if m.Type == "language" && defaultModels.strategyModel == "" {
 			defaultModels.strategyModel = m.ID
 			defaultModels.answerModel = m.ID
 			defaultModels.finalAnswerModel = m.ID
-			break
 		}
 	}
 	modelsLoaded = true

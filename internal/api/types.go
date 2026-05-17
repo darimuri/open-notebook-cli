@@ -145,3 +145,13 @@ type ModelResponse struct {
 	Created    string `json:"created"`
 	Updated    string `json:"updated"`
 }
+
+type DefaultModelsResponse struct {
+	DefaultChatModel            string `json:"default_chat_model"`
+	DefaultTransformationModel  string `json:"default_transformation_model"`
+	LargeContextModel          string `json:"large_context_model"`
+	DefaultTextToSpeechModel    string `json:"default_text_to_speech_model"`
+	DefaultSpeechToTextModel    string `json:"default_speech_to_text_model"`
+	DefaultEmbeddingModel      string `json:"default_embedding_model"`
+	DefaultToolsModel          string `json:"default_tools_model"`
+}
