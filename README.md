@@ -18,12 +18,13 @@ cd open-notebook-cli
 go build -o open-notebook-cli ./main.go
 ```
 
-### Claude Code Skill Installation
+### Claude Code Plugin Installation
 
-Install the Open Notebook skill for use in Claude Code:
+Install the Open Notebook plugin for use in Claude Code:
 
 ```bash
-skill install github.com/darimuri/open-notebook-cli//skills/open-notebook
+claude plugin marketplace add darimuri/open-notebook-cli
+claude plugin install open-notebook@open-notebook-cli
 ```
 
 After installation, you can use `/open-notebook` commands directly in Claude Code:
