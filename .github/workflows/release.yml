@@ -61,10 +61,9 @@ jobs:
         run: go build -ldflags "-X github.com/darimuri/open-notebook-cli/cmd.version=$VERSION" -o open-notebook-windows-arm64.exe ./main.go
 
       - name: Upload Release Asset
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag: ${{ github.ref_name }}
-          artifacts: |
+          files: |
             open-notebook-linux-amd64
             open-notebook-linux-arm64
             open-notebook-darwin-amd64
@@ -72,4 +71,5 @@ jobs:
             open-notebook-windows-amd64.exe
             open-notebook-windows-arm64.exe
           prerelease: ${{ contains(github.ref_name, '-') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
