@@ -1,15 +1,21 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
+
+type GitHubRelease struct {
+	TagName string `json:"tag_name"`
+}
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
@@ -24,6 +30,20 @@ func init() {
 func runUpdate(cmd *cobra.Command, args []string) error {
 	currentVersion := version
 
+	// Check CLI update
+	if err := updateCLI(currentVersion); err != nil {
+		return err
+	}
+
+	// Check skill update
+	if err := checkSkillVersion(currentVersion); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	}
+
+	return nil
+}
+
+func updateCLI(currentVersion string) error {
 	latestURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest",
 		"darimuri", "open-notebook-cli")
 
@@ -42,32 +62,27 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Simple JSON parsing - extract tag_name
-	lines := strings.Split(string(body), "\n")
-	var latestTag string
-	for _, line := range lines {
-		if strings.Contains(line, `"tag_name"`) {
-			parts := strings.Split(line, `"`)
-			if len(parts) >= 4 {
-				latestTag = parts[3]
-			}
-			break
-		}
+	var release GitHubRelease
+	if err := json.Unmarshal(body, &release); err != nil {
+		return fmt.Errorf("failed to parse release: %w", err)
 	}
 
-	if latestTag == "" {
+	if release.TagName == "" {
 		return fmt.Errorf("could not find latest version tag")
 	}
 
 	// Remove 'v' prefix if present
-	latestVersion := strings.TrimPrefix(latestTag, "v")
+	latestVersion := strings.TrimPrefix(release.TagName, "v")
 
-	if currentVersion != "dev" && currentVersion == latestVersion {
-		fmt.Printf("Already on latest version: %s\n", currentVersion)
+	// Normalize currentVersion by removing 'v' prefix if present
+	currentVersionNorm := strings.TrimPrefix(currentVersion, "v")
+
+	if currentVersionNorm != "dev" && currentVersionNorm == latestVersion {
+		fmt.Printf("CLI is already on latest version: %s\n", currentVersion)
 		return nil
 	}
 
-	fmt.Printf("Updating from %s to %s...\n", currentVersion, latestVersion)
+	fmt.Printf("Updating CLI from %s to %s...\n", currentVersion, release.TagName)
 
 	// Build download URL
 	goos := runtime.GOOS
@@ -78,7 +93,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 	filename := fmt.Sprintf("open-notebook-%s-%s%s", goos, goarch, ext)
 	downloadURL := fmt.Sprintf("https://github.com/darimuri/open-notebook-cli/releases/download/%s/%s",
-		latestTag, filename)
+		release.TagName, filename)
 
 	// Download the binary
 	fmt.Printf("Downloading %s...\n", downloadURL)
@@ -128,6 +143,42 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	os.Chmod(tmpPath, 0755)
 	os.Rename(tmpPath, installPath)
 
-	fmt.Printf("Updated to %s. Installed to: %s\n", latestVersion, installPath)
+	fmt.Printf("CLI updated to %s. Installed to: %s\n", latestVersion, installPath)
+	return nil
+}
+
+func checkSkillVersion(cliVersion string) error {
+	skillURL := "https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/skills/open-notebook/SKILL.md"
+
+	resp, err := http.Get(skillURL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch skill: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to get skill: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read skill: %w", err)
+	}
+
+	// Parse version from SKILL.md (look for version: "x.y.z" in frontmatter)
+	versionRe := regexp.MustCompile(`version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?`)
+	matches := versionRe.FindStringSubmatch(string(body))
+	if len(matches) < 2 {
+		// No version in skill, skip check
+		return nil
+	}
+
+	skillVersion := matches[1]
+
+	// Compare versions
+	if cliVersion != "dev" && cliVersion != skillVersion {
+		return fmt.Errorf("skill version (%s) does not match CLI version (%s). Update skill from: https://github.com/darimuri/open-notebook-cli/blob/main/skills/open-notebook/SKILL.md", skillVersion, cliVersion)
+	}
+
 	return nil
 }

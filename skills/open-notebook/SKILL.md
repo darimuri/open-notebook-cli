@@ -1,6 +1,7 @@
 ---
 name: open-notebook
 description: CLI tool for Open Notebook API - Manage notebooks, sources, search, and chat with your research materials
+version: "1.0.0"
 trigger: /open-notebook
 ---
 
@@ -144,6 +145,11 @@ open-notebook search simple "Summarize the key points"
 
 ## CLI Installation
 
+### Quick install (Linux/macOS)
+```bash
+curl -sL https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/install.sh | bash
+```
+
 ### From source
 ```bash
 git clone https://github.com/darimuri/open-notebook-cli.git
@@ -151,6 +157,9 @@ cd open-notebook-cli
 go build -o open-notebook ./main.go
 # Add to PATH or use ./open-notebook
 ```
+
+### Manual download
+Download from https://github.com/darimuri/open-notebook-cli/releases/latest
 
 ### Global Flags
 ```
