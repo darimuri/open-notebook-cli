@@ -175,8 +175,12 @@ func checkSkillVersion(cliVersion string) error {
 
 	skillVersion := matches[1]
 
+	// Normalize versions by removing 'v' prefix
+	cliVersionNorm := strings.TrimPrefix(cliVersion, "v")
+	skillVersionNorm := strings.TrimPrefix(skillVersion, "v")
+
 	// Compare versions
-	if cliVersion != "dev" && cliVersion != skillVersion {
+	if cliVersionNorm != "dev" && cliVersionNorm != skillVersionNorm {
 		return fmt.Errorf("skill version (%s) does not match CLI version (%s). Update skill from: https://github.com/darimuri/open-notebook-cli/blob/main/skills/open-notebook/SKILL.md", skillVersion, cliVersion)
 	}
 
