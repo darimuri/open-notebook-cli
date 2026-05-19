@@ -70,6 +70,5 @@ jobs:
             open-notebook-darwin-arm64
             open-notebook-windows-amd64.exe
             open-notebook-windows-arm64.exe
-          draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           token: ${{ secrets.GITHUB_TOKEN }}
