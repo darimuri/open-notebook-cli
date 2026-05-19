@@ -150,6 +150,11 @@ open-notebook search simple "Summarize the key points"
 curl -sL https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/install.sh | bash
 ```
 
+### Quick install (Windows)
+```powershell
+irm https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/install.ps1 | iex
+```
+
 ### From source
 ```bash
 git clone https://github.com/darimuri/open-notebook-cli.git
