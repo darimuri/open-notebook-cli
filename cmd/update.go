@@ -19,7 +19,7 @@ type GitHubRelease struct {
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update to the latest version",
+	Short: "Update CLI to the latest version",
 	RunE:  runUpdate,
 }
 
@@ -35,9 +35,9 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Check skill update
+	// Check skill version mismatch - just show warning
 	if err := checkSkillVersion(currentVersion); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nNote: %s\n", err.Error())
 	}
 
 	return nil
@@ -181,7 +181,7 @@ func checkSkillVersion(cliVersion string) error {
 
 	// Compare versions
 	if cliVersionNorm != "dev" && cliVersionNorm != skillVersionNorm {
-		return fmt.Errorf("skill version (%s) does not match CLI version (%s). Update skill from: https://github.com/darimuri/open-notebook-cli/blob/main/skills/open-notebook/SKILL.md", skillVersion, cliVersion)
+		return fmt.Errorf("skill version (%s) does not match CLI version (%s). Plugin update required: https://github.com/darimuri/open-notebook-cli", skillVersion, cliVersion)
 	}
 
 	return nil
