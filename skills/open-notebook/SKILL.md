@@ -1,7 +1,7 @@
 ---
 name: open-notebook
 description: CLI tool for Open Notebook API - Manage notebooks, sources, search, and chat with your research materials
-version: "0.0.3"
+version: "0.0.5"
 trigger: /open-notebook
 ---
 
@@ -49,9 +49,6 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 ### Sources
 
 ```bash
-# List all sources
-/open-notebook sources list
-
 # Add a single URL
 /open-notebook sources add https://example.com/article
 
@@ -90,9 +87,34 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 
 # Embed a source for vector search
 /open-notebook sources embed <source_id>
+/open-notebook sources embed <source_id> --wait
+/open-notebook sources embed <source_id> --wait --polling-period 5
+
+# Embed all non-embedded sources (batch)
+/open-notebook sources embed-batch
+/open-notebook sources embed-batch --max 10
+/open-notebook sources embed-batch --notebook <notebook_id>
+/open-notebook sources embed-batch --notebook <notebook_id> --max 5
+/open-notebook sources embed-batch --polling-period 5
 
 # Check source status
 /open-notebook sources status <source_id>
+```
+
+### Sources (list command)
+
+```bash
+# List all sources
+/open-notebook sources list
+
+# Filter by notebook
+/open-notebook sources list --notebook <notebook_id>
+
+# Limit number of sources
+/open-notebook sources list --max 20
+
+# Combine filters
+/open-notebook sources list --notebook <notebook_id> --max 50
 ```
 
 ### Search
@@ -141,6 +163,17 @@ open-notebook search simple "Summarize the key points"
 
 # Restore from backup directory
 /open-notebook config restore <input_dir>
+```
+
+### Commands
+
+```bash
+# List recent commands (server v1.8.5+ only)
+/open-notebook commands list
+
+# Note: List may return empty if not implemented on server
+# Check command status
+/open-notebook commands status <command_id>
 ```
 
 ## CLI Installation

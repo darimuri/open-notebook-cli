@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/darimuri/open-notebook-cli/internal/api"
@@ -16,6 +17,8 @@ import (
 var (
 	recursive      bool
 	maxDepth       int
+	maxCount       int
+	pollingPeriod  int
 	sourceNotebook string
 	sourceFile     string
 	skipEmbed      bool
@@ -100,8 +103,27 @@ var sourcesStatusCmd = &cobra.Command{
 var sourcesEmbedCmd = &cobra.Command{
 	Use:   "embed [source_id]",
 	Short: "Embed a source for vector search",
-	Args:  cobra.ExactArgs(1),
+	Long: `Embed a source for vector search.
+
+Use --wait to monitor the embed job until completion.`,
+	Args: cobra.ExactArgs(1),
 	RunE:  runSourcesEmbed,
+}
+
+var embedWait bool
+
+var sourcesEmbedBatchCmd = &cobra.Command{
+	Use:   "embed-batch",
+	Short: "Embed all non-embedded sources",
+	Long: `Embed all non-embedded sources in all pages.
+
+This command will:
+	1. List all sources across all pages
+	2. Filter for non-embedded sources (embedded_chunks=0, status=completed)
+	3. Trigger embed for each source
+	4. Monitor until all complete
+	5. Stop and report if any embed fails`,
+	RunE: runSourcesEmbedBatch,
 }
 
 func init() {
@@ -113,24 +135,44 @@ func init() {
 	sourcesCmd.AddCommand(sourcesInsightsCmd)
 	sourcesCmd.AddCommand(sourcesStatusCmd)
 	sourcesCmd.AddCommand(sourcesEmbedCmd)
+	sourcesCmd.AddCommand(sourcesEmbedBatchCmd)
 	rootCmd.AddCommand(sourcesCmd)
 
 	// Add command flags
+	sourcesListCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Filter by notebook ID")
+	sourcesListCmd.Flags().IntVar(&maxCount, "max", 0, "Maximum number of sources to list (0 = all)")
+
 	sourcesAddCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Recursively crawl internal links")
 	sourcesAddCmd.Flags().IntVar(&maxDepth, "depth", 0, "Maximum crawl depth (0 = unlimited)")
 	sourcesAddCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Notebook ID to add sources to")
 	sourcesAddCmd.Flags().StringVarP(&sourceFile, "file", "f", "", "Read URLs from file (one per line)")
 	sourcesAddCmd.Flags().String("text", "", "Add text content as source")
 	sourcesAddCmd.Flags().BoolVar(&skipEmbed, "skip-embed", false, "Skip embedding (default: embed)")
+
+	sourcesEmbedBatchCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Notebook ID to filter sources")
+	sourcesEmbedBatchCmd.Flags().IntVar(&maxCount, "max", 0, "Maximum number of sources to embed (0 = all)")
+	sourcesEmbedBatchCmd.Flags().IntVar(&pollingPeriod, "polling-period", 10, "Polling interval in seconds")
+
+	sourcesEmbedCmd.Flags().BoolVar(&embedWait, "wait", false, "Wait for embed to complete")
+	sourcesEmbedCmd.Flags().IntVar(&pollingPeriod, "polling-period", 10, "Polling interval in seconds")
 }
 
 func runSourcesList(cmd *cobra.Command, args []string) error {
 	client := getClient()
 
+	url := "/api/sources"
+	if sourceNotebook != "" {
+		url = fmt.Sprintf("/api/sources?notebook=%s", sourceNotebook)
+	}
+
 	var sources []api.SourceResponse
-	err := client.Get("/api/sources", &sources)
+	err := client.Get(url, &sources)
 	if err != nil {
 		return fmt.Errorf("failed to list sources: %w", err)
+	}
+
+	if maxCount > 0 && len(sources) > maxCount {
+		sources = sources[:maxCount]
 	}
 
 	return outputJSON(sources)
@@ -454,6 +496,206 @@ func runSourcesEmbed(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to embed source: %w", err)
 	}
 
-	fmt.Printf("Embedded: %s (%s)\n", result.ItemID, result.Message)
+	fmt.Printf("[%s] - Started embed (cmd: %s)\n", result.ItemID, result.CommandID)
+
+	if !embedWait {
+		fmt.Printf("Embedded: %s (%s)\n", result.ItemID, result.Message)
+		return nil
+	}
+
+	// Wait for embed to complete
+	fmt.Println("\nMonitoring embed progress...")
+	pollingInterval := 10
+	if pollingPeriod > 0 {
+		pollingInterval = pollingPeriod
+	}
+	startTime := time.Now()
+	sourceID := result.ItemID
+	cmdID := result.CommandID
+
+	for {
+		elapsed := time.Since(startTime).Round(time.Second)
+
+		var cmdResult api.CommandJobStatus
+		err := client.Get("/api/commands/jobs/"+cmdID, &cmdResult)
+		if err != nil {
+			return fmt.Errorf("failed to get command status: %w", err)
+		}
+
+		switch cmdResult.Status {
+		case "completed":
+			chunks := 0
+			if cmdResult.Result != nil {
+				if m, ok := cmdResult.Result.(map[string]any); ok {
+					if c, ok := m["chunks_created"].(float64); ok {
+						chunks = int(c)
+					}
+				}
+			}
+			fmt.Printf("[%s] (chunks: %d, DONE, elapsed: %s)\n", sourceID, chunks, elapsed)
+			fmt.Printf("\nEmbed completed successfully! (%s)\n", elapsed)
+			return nil
+		case "failed":
+			fmt.Printf("[%s] - FAILED: %s\n", sourceID, cmdResult.ErrorMessage)
+			return fmt.Errorf("embed failed for source %s: %s", sourceID, cmdResult.ErrorMessage)
+		case "running", "pending", "new", "":
+			fmt.Printf("[%s] (cmd: %s, status: %s, elapsed: %s)\n", sourceID, cmdID, cmdResult.Status, elapsed)
+		}
+
+		time.Sleep(time.Duration(pollingInterval) * time.Second)
+	}
+}
+
+func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
+	client := getClient()
+
+	// Step 1: Get non-embedded sources (paginated, stop early if max reached)
+	fmt.Println("Fetching sources...")
+	var allSources []api.SourceResponse
+	var nonEmbedded []api.SourceResponse
+	page := 1
+	for {
+		var sources []api.SourceResponse
+		var err error
+		if sourceNotebook != "" {
+			err = client.Get(fmt.Sprintf("/api/sources?notebook=%s&page=%d", sourceNotebook, page), &sources)
+		} else {
+			err = client.Get(fmt.Sprintf("/api/sources?page=%d", page), &sources)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to fetch sources page %d: %w", page, err)
+		}
+		if len(sources) == 0 {
+			break
+		}
+
+		// Filter non-embedded from this page
+		for _, s := range sources {
+			if s.EmbeddedChunks == 0 && s.Status == "completed" {
+				nonEmbedded = append(nonEmbedded, s)
+			}
+		}
+		allSources = append(allSources, sources...)
+		fmt.Printf("Page %d: %d sources, %d non-embedded (total: %d, non-embedded: %d)\n",
+			page, len(sources), len(nonEmbedded), len(allSources), len(nonEmbedded))
+
+		// Early exit if we have enough non-embedded sources
+		if maxCount > 0 && len(nonEmbedded) >= maxCount {
+			fmt.Printf("Reached max limit %d, stopping page fetch\n", maxCount)
+			break
+		}
+		page++
+	}
+	fmt.Printf("\nTotal sources: %d, Non-embedded: %d\n", len(allSources), len(nonEmbedded))
+
+	if len(nonEmbedded) == 0 {
+		fmt.Println("All sources are already embedded!")
+		return nil
+	}
+
+	// Apply max limit if specified
+	if maxCount > 0 && len(nonEmbedded) > maxCount {
+		nonEmbedded = nonEmbedded[:maxCount]
+		fmt.Printf("Limited to %d sources\n", maxCount)
+	}
+
+	// Step 2: Trigger embed for each non-embedded source
+	fmt.Println("\nTriggering embed for all non-embedded sources...")
+	embedStarted := 0
+	embedFailed := 0
+	// Track source ID -> command ID mapping for monitoring
+	sourceCommands := make(map[string]string)
+	for _, s := range nonEmbedded {
+		req := api.EmbedRequest{
+			ItemID:   s.ID,
+			ItemType: "source",
+		}
+		var result api.EmbedResponse
+		err := client.Post("/api/embed", req, &result)
+		if err != nil {
+			fmt.Printf("Failed to trigger embed for %s: %v\n", s.ID, err)
+			embedFailed++
+		} else {
+			sourceCommands[s.ID] = result.CommandID
+			fmt.Printf("[%s] %s - Started embed (cmd: %s)\n", s.ID, s.Title, result.CommandID)
+			embedStarted++
+		}
+	}
+	fmt.Printf("\nEmbed started: %d, Failed to trigger: %d\n", embedStarted, embedFailed)
+
+	// Step 3: Monitor until all complete via command job status
+	fmt.Println("\nMonitoring embed progress...")
+	pollingInterval := 10
+	if pollingPeriod > 0 {
+		pollingInterval = pollingPeriod
+	}
+	startTime := time.Now()
+	startedIDs := make(map[string]bool)
+	for id := range sourceCommands {
+		startedIDs[id] = true
+	}
+
+	for {
+		elapsed := time.Since(startTime).Round(time.Second)
+		remaining := 0
+		completed := 0
+
+		// Check each source's command job status
+		for _, s := range nonEmbedded {
+			if !startedIDs[s.ID] {
+				continue
+			}
+
+			cmdID, ok := sourceCommands[s.ID]
+			if !ok || cmdID == "" {
+				// No command ID, check embedded_chunks as fallback
+				if s.EmbeddedChunks == 0 {
+					remaining++
+					fmt.Printf("[%s] %s (chunks: %d, elapsed: %s)\n", s.ID, s.Title, s.EmbeddedChunks, elapsed)
+				} else {
+					completed++
+					fmt.Printf("[%s] %s (chunks: %d, DONE, elapsed: %s)\n", s.ID, s.Title, s.EmbeddedChunks, elapsed)
+				}
+				continue
+			}
+
+			var cmdResult api.CommandJobStatus
+			err := client.Get("/api/commands/jobs/"+cmdID, &cmdResult)
+			if err != nil {
+				fmt.Printf("[%s] %s - Failed to get command status: %v\n", s.ID, s.Title, err)
+				remaining++
+				continue
+			}
+
+			switch cmdResult.Status {
+			case "completed":
+				completed++
+				chunks := 0
+				if cmdResult.Result != nil {
+					if m, ok := cmdResult.Result.(map[string]any); ok {
+						if c, ok := m["chunks_created"].(float64); ok {
+							chunks = int(c)
+						}
+					}
+				}
+				fmt.Printf("[%s] %s (chunks: %d, DONE, elapsed: %s)\n", s.ID, s.Title, chunks, elapsed)
+			case "failed":
+				fmt.Printf("[%s] %s - FAILED: %s\n", s.ID, s.Title, cmdResult.ErrorMessage)
+				return fmt.Errorf("embed failed for source %s: %s", s.ID, cmdResult.ErrorMessage)
+			case "running", "pending", "new", "":
+				remaining++
+				fmt.Printf("[%s] %s (cmd: %s, status: %s, elapsed: %s)\n", s.ID, s.Title, cmdID, cmdResult.Status, elapsed)
+			}
+		}
+
+		if remaining == 0 {
+			fmt.Printf("\nAll sources embedded successfully! (%d sources, %s)\n", completed, elapsed)
+			break
+		}
+
+		fmt.Printf("Remaining: %d, Completed: %d (polling every %ds, elapsed: %s)\n", remaining, completed, pollingInterval, elapsed)
+		time.Sleep(time.Duration(pollingInterval) * time.Second)
+	}
+
 	return nil
 }

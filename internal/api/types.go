@@ -67,13 +67,15 @@ type NoteResponse struct {
 
 // Source types
 type SourceResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Status   string `json:"status"`
-	Size     int    `json:"size"`
-	Created  string `json:"created"`
-	Updated  string `json:"updated"`
+	ID              string `json:"id"`
+	Title           string `json:"title"`
+	Type            string `json:"type"`
+	Status          string `json:"status"`
+	Size            int    `json:"size"`
+	EmbeddedChunks  int    `json:"embedded_chunks"`
+	CommandID       string `json:"command_id,omitempty"`
+	Created         string `json:"created"`
+	Updated         string `json:"updated"`
 }
 
 type SourceCreate struct {
@@ -85,8 +87,9 @@ type SourceCreate struct {
 }
 
 type SourceStatusResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status    string `json:"status"`
+	CommandID string `json:"command_id,omitempty"`
+	Message   string `json:"message"`
 }
 
 // Embed types
@@ -97,10 +100,11 @@ type EmbedRequest struct {
 }
 
 type EmbedResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	ItemID  string `json:"item_id"`
-	ItemType string `json:"item_type"`
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	ItemID     string `json:"item_id"`
+	ItemType   string `json:"item_type"`
+	CommandID  string `json:"command_id,omitempty"`
 }
 
 // Search types
@@ -191,4 +195,12 @@ type CredentialResponse struct {
 	Updated         string   `json:"updated"`
 	ModelCount      int      `json:"model_count"`
 	DecryptionError string   `json:"decryption_error"`
+}
+
+// Command job status
+type CommandJobStatus struct {
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	Result        any    `json:"result,omitempty"`
+	ErrorMessage  string `json:"error_message,omitempty"`
 }
