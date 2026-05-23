@@ -604,13 +604,12 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Limited to %d sources\n", maxCount)
 	}
 
-	// Step 2: Trigger embed for each non-embedded source
-	fmt.Println("\nTriggering embed for all non-embedded sources...")
-	embedStarted := 0
-	embedFailed := 0
-	// Track source ID -> command ID mapping for monitoring
-	sourceCommands := make(map[string]string)
-	for _, s := range nonEmbedded {
+	// Step 2: Sequential embed - one at a time
+	fmt.Println("\nStarting sequential embed...")
+	for i, s := range nonEmbedded {
+		fmt.Printf("[%d/%d] %s - Embedding...\n", i+1, len(nonEmbedded), s.Title)
+
+		// Trigger embed
 		req := api.EmbedRequest{
 			ItemID:   s.ID,
 			ItemType: "source",
@@ -618,63 +617,26 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 		var result api.EmbedResponse
 		err := client.Post("/api/embed", req, &result)
 		if err != nil {
-			fmt.Printf("Failed to trigger embed for %s: %v\n", s.ID, err)
-			embedFailed++
-		} else {
-			sourceCommands[s.ID] = result.CommandID
-			fmt.Printf("[%s] %s - Started embed (cmd: %s)\n", s.ID, s.Title, result.CommandID)
-			embedStarted++
+			return fmt.Errorf("failed to trigger embed for %s: %w", s.ID, err)
 		}
-	}
-	fmt.Printf("\nEmbed started: %d, Failed to trigger: %d\n", embedStarted, embedFailed)
 
-	// Step 3: Monitor until all complete via command job status
-	fmt.Println("\nMonitoring embed progress...")
-	pollingInterval := 10
-	if pollingPeriod > 0 {
-		pollingInterval = pollingPeriod
-	}
-	startTime := time.Now()
-	startedIDs := make(map[string]bool)
-	for id := range sourceCommands {
-		startedIDs[id] = true
-	}
-
-	for {
-		elapsed := time.Since(startTime).Round(time.Second)
-		remaining := 0
-		completed := 0
-
-		// Check each source's command job status
-		for _, s := range nonEmbedded {
-			if !startedIDs[s.ID] {
-				continue
-			}
-
-			cmdID, ok := sourceCommands[s.ID]
-			if !ok || cmdID == "" {
-				// No command ID, check embedded_chunks as fallback
-				if s.EmbeddedChunks == 0 {
-					remaining++
-					fmt.Printf("[%s] %s (chunks: %d, elapsed: %s)\n", s.ID, s.Title, s.EmbeddedChunks, elapsed)
-				} else {
-					completed++
-					fmt.Printf("[%s] %s (chunks: %d, DONE, elapsed: %s)\n", s.ID, s.Title, s.EmbeddedChunks, elapsed)
-				}
-				continue
-			}
-
+		// Poll for completion
+		pollingInterval := 10
+		if pollingPeriod > 0 {
+			pollingInterval = pollingPeriod
+		}
+		startTime := time.Now()
+		for {
 			var cmdResult api.CommandJobStatus
-			err := client.Get("/api/commands/jobs/"+cmdID, &cmdResult)
+			err := client.Get("/api/commands/jobs/"+result.CommandID, &cmdResult)
 			if err != nil {
-				fmt.Printf("[%s] %s - Failed to get command status: %v\n", s.ID, s.Title, err)
-				remaining++
-				continue
+				return fmt.Errorf("failed to get command status for %s: %w", s.ID, err)
 			}
+
+			elapsed := time.Since(startTime).Round(time.Second)
 
 			switch cmdResult.Status {
 			case "completed":
-				completed++
 				chunks := 0
 				if cmdResult.Result != nil {
 					if m, ok := cmdResult.Result.(map[string]any); ok {
@@ -683,24 +645,19 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 						}
 					}
 				}
-				fmt.Printf("[%s] %s (chunks: %d, DONE, elapsed: %s)\n", s.ID, s.Title, chunks, elapsed)
+				fmt.Printf("[%s] DONE (chunks: %d, elapsed: %s)\n", s.Title, chunks, elapsed)
 			case "failed":
-				fmt.Printf("[%s] %s - FAILED: %s\n", s.ID, s.Title, cmdResult.ErrorMessage)
 				return fmt.Errorf("embed failed for source %s: %s", s.ID, cmdResult.ErrorMessage)
 			case "running", "pending", "new", "":
-				remaining++
-				fmt.Printf("[%s] %s (cmd: %s, status: %s, elapsed: %s)\n", s.ID, s.Title, cmdID, cmdResult.Status, elapsed)
+				fmt.Printf("[%s] status: %s, elapsed: %s (polling every %ds)\n", s.Title, cmdResult.Status, elapsed, pollingInterval)
+				time.Sleep(time.Duration(pollingInterval) * time.Second)
+				continue
 			}
-		}
 
-		if remaining == 0 {
-			fmt.Printf("\nAll sources embedded successfully! (%d sources, %s)\n", completed, elapsed)
 			break
 		}
-
-		fmt.Printf("Remaining: %d, Completed: %d (polling every %ds, elapsed: %s)\n", remaining, completed, pollingInterval, elapsed)
-		time.Sleep(time.Duration(pollingInterval) * time.Second)
 	}
 
+	fmt.Printf("\nAll %d sources embedded successfully!\n", len(nonEmbedded))
 	return nil
 }
