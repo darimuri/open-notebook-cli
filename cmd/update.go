@@ -148,40 +148,51 @@ func updateCLI(currentVersion string) error {
 }
 
 func checkSkillVersion(cliVersion string) error {
-	skillURL := "https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/skills/open-notebook/SKILL.md"
+	// Get local skill version from source SKILL.md
+	localSkillPath := "skills/open-notebook/SKILL.md"
+	body, err := os.ReadFile(localSkillPath)
+	if err != nil {
+		return nil // Skip check if cannot read file
+	}
 
+	// Parse version from local SKILL.md
+	versionRe := regexp.MustCompile(`version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?`)
+	matches := versionRe.FindStringSubmatch(string(body))
+	if len(matches) < 2 {
+		return nil
+	}
+
+	localVersion := matches[1]
+
+	// Fetch remote skill version from GitHub
+	skillURL := "https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/skills/open-notebook/SKILL.md"
 	resp, err := http.Get(skillURL)
 	if err != nil {
-		return fmt.Errorf("failed to fetch skill: %w", err)
+		return nil // Skip check on network error
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("failed to get skill: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read skill: %w", err)
-	}
-
-	// Parse version from SKILL.md (look for version: "x.y.z" in frontmatter)
-	versionRe := regexp.MustCompile(`version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?`)
-	matches := versionRe.FindStringSubmatch(string(body))
-	if len(matches) < 2 {
-		// No version in skill, skip check
 		return nil
 	}
 
-	skillVersion := matches[1]
+	remoteBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
 
-	// Normalize versions by removing 'v' prefix
-	cliVersionNorm := strings.TrimPrefix(cliVersion, "v")
-	skillVersionNorm := strings.TrimPrefix(skillVersion, "v")
+	matches = versionRe.FindStringSubmatch(string(remoteBody))
+	if len(matches) < 2 {
+		return nil
+	}
+
+	remoteVersion := matches[1]
 
 	// Compare versions
-	if cliVersionNorm != "dev" && cliVersionNorm != skillVersionNorm {
-		return fmt.Errorf("skill version (%s) does not match CLI version (%s). Plugin update required: https://github.com/darimuri/open-notebook-cli", skillVersion, cliVersion)
+	localNorm := strings.TrimPrefix(localVersion, "v")
+	remoteNorm := strings.TrimPrefix(remoteVersion, "v")
+	if localNorm != remoteNorm {
+		fmt.Printf("Skill update available: %s -> %s\n", localVersion, remoteVersion)
 	}
 
 	return nil
