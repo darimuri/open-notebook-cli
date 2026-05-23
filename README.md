@@ -129,6 +129,10 @@ open-notebook-cli notes delete <note_id>
 # List all sources
 open-notebook-cli sources list
 
+# List with filters
+open-notebook-cli sources list --notebook <notebook_id>
+open-notebook-cli sources list --max 20
+
 # Add a single URL
 open-notebook-cli sources add https://example.com/article
 
@@ -164,6 +168,27 @@ open-notebook-cli sources insights <source_id>
 
 # Check source status
 open-notebook-cli sources status <source_id>
+
+# Embed a source for vector search
+open-notebook-cli sources embed <source_id>
+
+# Embed with wait (monitor until complete)
+open-notebook-cli sources embed <source_id> --wait
+
+# Embed with custom polling interval
+open-notebook-cli sources embed <source_id> --wait --polling-period 5
+
+# Batch embed all non-embedded sources
+open-notebook-cli sources embed-batch
+
+# Batch embed with notebook filter
+open-notebook-cli sources embed-batch --notebook <notebook_id>
+
+# Batch embed with max limit
+open-notebook-cli sources embed-batch --max 10
+
+# Batch embed with custom polling interval
+open-notebook-cli sources embed-batch --polling-period 5
 ```
 
 ### Search
