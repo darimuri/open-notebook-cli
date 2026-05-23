@@ -104,17 +104,17 @@ Make sure `open-notebook` CLI is installed and accessible in PATH. See [CLI Inst
 ### Sources (list command)
 
 ```bash
-# List all sources
+# List all sources (page 1, 50 per page)
 /open-notebook sources list
+
+# List specific page
+/open-notebook sources list --page 2
 
 # Filter by notebook
 /open-notebook sources list --notebook <notebook_id>
 
-# Limit number of sources
-/open-notebook sources list --max 20
-
-# Combine filters
-/open-notebook sources list --notebook <notebook_id> --max 50
+# Filter by notebook with specific page
+/open-notebook sources list --notebook <notebook_id> --page 3
 ```
 
 ### Search
