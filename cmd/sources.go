@@ -22,6 +22,7 @@ var (
 	sourceNotebook string
 	sourceFile     string
 	skipEmbed      bool
+	pageFlag       int
 )
 
 var sourcesCmd = &cobra.Command{
@@ -140,7 +141,7 @@ func init() {
 
 	// Add command flags
 	sourcesListCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Filter by notebook ID")
-	sourcesListCmd.Flags().IntVar(&maxCount, "max", 0, "Maximum number of sources to list (0 = all)")
+	sourcesListCmd.Flags().IntVar(&pageFlag, "page", 1, "Page number (default 1)")
 
 	sourcesAddCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Recursively crawl internal links")
 	sourcesAddCmd.Flags().IntVar(&maxDepth, "depth", 0, "Maximum crawl depth (0 = unlimited)")
@@ -161,18 +162,21 @@ func runSourcesList(cmd *cobra.Command, args []string) error {
 	client := getClient()
 
 	url := "/api/sources"
+	page := pageFlag
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * 50
 	if sourceNotebook != "" {
-		url = fmt.Sprintf("/api/sources?notebook=%s", sourceNotebook)
+		url = fmt.Sprintf("/api/sources?notebook=%s&offset=%d", sourceNotebook, offset)
+	} else {
+		url = fmt.Sprintf("/api/sources?offset=%d", offset)
 	}
 
 	var sources []api.SourceResponse
 	err := client.Get(url, &sources)
 	if err != nil {
 		return fmt.Errorf("failed to list sources: %w", err)
-	}
-
-	if maxCount > 0 && len(sources) > maxCount {
-		sources = sources[:maxCount]
 	}
 
 	return outputJSON(sources)
@@ -557,10 +561,11 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 	for {
 		var sources []api.SourceResponse
 		var err error
+		offset := (page - 1) * 50
 		if sourceNotebook != "" {
-			err = client.Get(fmt.Sprintf("/api/sources?notebook=%s&page=%d", sourceNotebook, page), &sources)
+			err = client.Get(fmt.Sprintf("/api/sources?notebook=%s&offset=%d", sourceNotebook, offset), &sources)
 		} else {
-			err = client.Get(fmt.Sprintf("/api/sources?page=%d", page), &sources)
+			err = client.Get(fmt.Sprintf("/api/sources?offset=%d", offset), &sources)
 		}
 		if err != nil {
 			return fmt.Errorf("failed to fetch sources page %d: %w", page, err)
