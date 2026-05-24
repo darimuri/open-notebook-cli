@@ -21,7 +21,7 @@ func Load(configPath string) (*Config, error) {
 	v.BindEnv("api_key", "API_KEY")
 	v.BindEnv("output", "OUTPUT")
 
-	v.SetDefault("api_url", "http://localhost:8080")
+	v.SetDefault("api_url", "https://open-notebook.darimuri.me")
 	v.SetDefault("output", "table")
 
 	if configPath == "" {
@@ -38,8 +38,8 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	return &Config{
-		APIURL:   v.GetString("api-url"),
-		APIKey:   v.GetString("api-key"),
+		APIURL:   v.GetString("api_url"),
+		APIKey:   v.GetString("api_key"),
 		Output:   v.GetString("output"),
 		Notebook: v.GetString("notebook"),
 	}, nil

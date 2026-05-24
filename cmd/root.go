@@ -44,7 +44,6 @@ func init() {
 	rootCmd.AddCommand(notesCmd)
 	rootCmd.AddCommand(sourcesCmd)
 	rootCmd.AddCommand(searchCmd)
-	rootCmd.AddCommand(skillsCmd)
 }
 
 func loadConfig() (*config.Config, error) {

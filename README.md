@@ -18,26 +18,27 @@ cd open-notebook-cli
 go build -o open-notebook-cli ./main.go
 ```
 
-### Claude Code Plugin Installation
-
-Install the Open Notebook plugin for use in Claude Code:
-
+### Quick install (Linux/macOS)
 ```bash
-claude plugin marketplace add darimuri/open-notebook-cli
-claude plugin install open-notebook@open-notebook-cli
+curl -sL https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/install.sh | bash
 ```
 
-After installation, you can use `/open-notebook` commands directly in Claude Code:
-
-```bash
-/open-notebook notebooks list
-/open-notebook sources add -r https://docs.site.com
-/open-notebook search ask "What is machine learning?"
+### Quick install (Windows)
+```powershell
+irm https://raw.githubusercontent.com/darimuri/open-notebook-cli/main/install.ps1 | iex
 ```
+
+### From source
+```bash
+git clone https://github.com/darimuri/open-notebook-cli.git
+cd open-notebook-cli
+go build -o open-notebook-cli ./main.go
+```
+
+### Manual download
+Download from https://github.com/darimuri/open-notebook-cli/releases/latest
 
 ## Configuration
-
-Configuration is loaded in the following order (highest priority first):
 
 1. **Command-line flags**
 2. **Environment variables**
@@ -300,16 +301,13 @@ open-notebook-cli/
 │   ├── notes.go        # Note commands
 │   ├── sources.go      # Source commands
 │   ├── search.go       # Search commands
-│   └── skills.go       # Skills commands
+│   └── commands.go     # Commands jobs
 ├── internal/
 │   ├── api/           # API client
 │   ├── auth/          # Auth middleware
 │   ├── config/        # Config loading
 │   ├── crawler/       # HTML link extraction
 │   └── formatter/      # Output formatter
-├── skills/
-│   └── open-notebook/ # Claude Code skill
-│       └── SKILL.md    # Skill definition
 ├── tests/
 │   ├── unit/          # Unit tests
 │   └── integration/   # Integration tests
