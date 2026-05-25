@@ -66,17 +66,21 @@ type NoteResponse struct {
 }
 
 // Source types
+type SourceStatusInfo struct {
+	Status         string `json:"status"`
+	Embedded       *bool  `json:"embedded,omitempty"`
+	EmbeddedChunks int    `json:"embedded_chunks,omitempty"`
+}
+
 type SourceResponse struct {
-	ID              string `json:"id"`
-	Title           string `json:"title"`
-	Type            string `json:"type"`
-	Status          string `json:"status"`
-	Embedded        *bool  `json:"embedded"`
-	Size            int    `json:"size"`
-	EmbeddedChunks  int    `json:"embedded_chunks"`
-	CommandID       string `json:"command_id,omitempty"`
-	Created         string `json:"created"`
-	Updated         string `json:"updated"`
+	SourceStatusInfo
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	Size      int    `json:"size"`
+	CommandID string `json:"command_id,omitempty"`
+	Created   string `json:"created"`
+	Updated   string `json:"updated"`
 }
 
 type SourceCreate struct {
@@ -88,7 +92,7 @@ type SourceCreate struct {
 }
 
 type SourceStatusResponse struct {
-	Status    string `json:"status"`
+	SourceStatusInfo
 	CommandID string `json:"command_id,omitempty"`
 	Message   string `json:"message"`
 }

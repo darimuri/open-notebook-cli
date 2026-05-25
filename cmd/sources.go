@@ -96,11 +96,11 @@ var sourcesInsightsCmd = &cobra.Command{
 	RunE:  runSourcesInsights,
 }
 
-var sourcesStatusCmd = &cobra.Command{
-	Use:   "status [source_id]",
-	Short: "Get source processing status",
+var sourcesGetCmd = &cobra.Command{
+	Use:   "get [source_id]",
+	Short: "Get a single source with all details including embed status",
 	Args:  cobra.ExactArgs(1),
-	RunE:  runSourcesStatus,
+	RunE:  runSourcesGet,
 }
 
 var sourcesEmbedCmd = &cobra.Command{
@@ -138,7 +138,7 @@ func init() {
 	sourcesCmd.AddCommand(sourcesDownloadCmd)
 	sourcesCmd.AddCommand(sourcesRetryCmd)
 	sourcesCmd.AddCommand(sourcesInsightsCmd)
-	sourcesCmd.AddCommand(sourcesStatusCmd)
+	sourcesCmd.AddCommand(sourcesGetCmd)
 	sourcesCmd.AddCommand(sourcesEmbedCmd)
 	sourcesCmd.AddCommand(sourcesEmbedBatchCmd)
 	rootCmd.AddCommand(sourcesCmd)
@@ -480,13 +480,13 @@ func runSourcesInsights(cmd *cobra.Command, args []string) error {
 	return outputJSON(result)
 }
 
-func runSourcesStatus(cmd *cobra.Command, args []string) error {
+func runSourcesGet(cmd *cobra.Command, args []string) error {
 	client := getClient()
 
-	var result api.SourceStatusResponse
-	err := client.Get("/api/sources/"+args[0]+"/status", &result)
+	var result api.SourceResponse
+	err := client.Get("/api/sources/"+args[0], &result)
 	if err != nil {
-		return fmt.Errorf("failed to get status: %w", err)
+		return fmt.Errorf("failed to get source: %w", err)
 	}
 
 	return outputJSON(result)
