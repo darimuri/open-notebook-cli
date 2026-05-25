@@ -15,14 +15,16 @@ import (
 )
 
 var (
-	recursive      bool
-	maxDepth       int
-	maxCount       int
-	pollingPeriod  int
-	sourceNotebook string
-	sourceFile     string
-	skipEmbed      bool
-	pageFlag       int
+	recursive       bool
+	maxDepth        int
+	maxCount        int
+	pollingPeriod   int
+	sourceNotebook  string
+	sourceFile      string
+	skipEmbed       bool
+	pageFlag        int
+	continueOnError bool
+	embedTimeout    time.Duration
 )
 
 var sourcesCmd = &cobra.Command{
@@ -120,10 +122,12 @@ var sourcesEmbedBatchCmd = &cobra.Command{
 
 This command will:
 	1. List all sources across all pages
-	2. Filter for non-embedded sources (embedded_chunks=0, status=completed)
+	2. Filter for non-embedded sources (embedded=false or nil, status=completed)
 	3. Trigger embed for each source
 	4. Monitor until all complete
-	5. Stop and report if any embed fails`,
+	5. Report results (success/failure counts)
+
+Use --continue-on-error to continue embedding even if some sources fail.`,
 	RunE: runSourcesEmbedBatch,
 }
 
@@ -153,6 +157,8 @@ func init() {
 	sourcesEmbedBatchCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Notebook ID to filter sources")
 	sourcesEmbedBatchCmd.Flags().IntVar(&maxCount, "max", 0, "Maximum number of sources to embed (0 = all)")
 	sourcesEmbedBatchCmd.Flags().IntVar(&pollingPeriod, "polling-period", 10, "Polling interval in seconds")
+	sourcesEmbedBatchCmd.Flags().BoolVar(&continueOnError, "continue-on-error", false, "Continue embedding even if a source fails")
+	sourcesEmbedBatchCmd.Flags().DurationVar(&embedTimeout, "embed-timeout", 10*time.Minute, "Timeout for each embed operation (default: 10m)")
 
 	sourcesEmbedCmd.Flags().BoolVar(&embedWait, "wait", false, "Wait for embed to complete")
 	sourcesEmbedCmd.Flags().IntVar(&pollingPeriod, "polling-period", 10, "Polling interval in seconds")
@@ -576,8 +582,10 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 
 		// Filter non-embedded from this page
 		for _, s := range sources {
-			if s.EmbeddedChunks == 0 && s.Status == "completed" {
-				nonEmbedded = append(nonEmbedded, s)
+			if s.Embedded == nil || *s.Embedded == false {
+				if s.Status == "completed" {
+					nonEmbedded = append(nonEmbedded, s)
+				}
 			}
 		}
 		allSources = append(allSources, sources...)
@@ -606,6 +614,8 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 
 	// Step 2: Sequential embed - one at a time
 	fmt.Println("\nStarting sequential embed...")
+	successCount := 0
+	failCount := 0
 	for i, s := range nonEmbedded {
 		fmt.Printf("[%d/%d] %s - Embedding...\n", i+1, len(nonEmbedded), s.Title)
 
@@ -617,7 +627,12 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 		var result api.EmbedResponse
 		err := client.Post("/api/embed", req, &result)
 		if err != nil {
-			return fmt.Errorf("failed to trigger embed for %s: %w", s.ID, err)
+			fmt.Fprintf(os.Stderr, "Failed to trigger embed for %s (%s): %v\n", s.Title, s.ID, err)
+			failCount++
+			if !continueOnError {
+				return fmt.Errorf("failed to trigger embed for %s: %w", s.ID, err)
+			}
+			continue
 		}
 
 		// Poll for completion
@@ -626,11 +641,15 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 			pollingInterval = pollingPeriod
 		}
 		startTime := time.Now()
+		embedded := false
 		for {
 			var cmdResult api.CommandJobStatus
 			err := client.Get("/api/commands/jobs/"+result.CommandID, &cmdResult)
 			if err != nil {
-				return fmt.Errorf("failed to get command status for %s: %w", s.ID, err)
+				fmt.Fprintf(os.Stderr, "Failed to get status for %s (%s): %v\n", s.Title, s.ID, err)
+				failCount++
+				embedded = false
+				break
 			}
 
 			elapsed := time.Since(startTime).Round(time.Second)
@@ -646,9 +665,24 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 					}
 				}
 				fmt.Printf("[%s] DONE (chunks: %d, elapsed: %s)\n", s.Title, chunks, elapsed)
+				embedded = true
 			case "failed":
-				return fmt.Errorf("embed failed for source %s: %s", s.ID, cmdResult.ErrorMessage)
+				fmt.Fprintf(os.Stderr, "Failed to embed %s (%s): %s\n", s.Title, s.ID, cmdResult.ErrorMessage)
+				embedded = false
+				failCount++
+				if !continueOnError {
+					return fmt.Errorf("embed failed for source %s: %s", s.ID, cmdResult.ErrorMessage)
+				}
 			case "running", "pending", "new", "":
+				if elapsed > embedTimeout {
+					fmt.Fprintf(os.Stderr, "Failed to embed %s (%s): timeout after %s\n", s.Title, s.ID, elapsed)
+					embedded = false
+					failCount++
+					if !continueOnError {
+						return fmt.Errorf("embed timeout for source %s after %s", s.ID, embedTimeout)
+					}
+					break
+				}
 				fmt.Printf("[%s] status: %s, elapsed: %s (polling every %ds)\n", s.Title, cmdResult.Status, elapsed, pollingInterval)
 				time.Sleep(time.Duration(pollingInterval) * time.Second)
 				continue
@@ -656,8 +690,17 @@ func runSourcesEmbedBatch(cmd *cobra.Command, args []string) error {
 
 			break
 		}
+		if embedded {
+			successCount++
+		}
 	}
 
-	fmt.Printf("\nAll %d sources embedded successfully!\n", len(nonEmbedded))
+	totalCount := successCount + failCount
+	fmt.Printf("\n=== Embed Batch Complete ===\n")
+	fmt.Printf("Total: %d, Success: %d, Failed: %d\n", totalCount, successCount, failCount)
+
+	if failCount > 0 {
+		return fmt.Errorf("embed failed for %d source(s)", failCount)
+	}
 	return nil
 }

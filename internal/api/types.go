@@ -71,6 +71,7 @@ type SourceResponse struct {
 	Title           string `json:"title"`
 	Type            string `json:"type"`
 	Status          string `json:"status"`
+	Embedded        *bool  `json:"embedded"`
 	Size            int    `json:"size"`
 	EmbeddedChunks  int    `json:"embedded_chunks"`
 	CommandID       string `json:"command_id,omitempty"`
