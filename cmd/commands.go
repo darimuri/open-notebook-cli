@@ -30,9 +30,22 @@ var commandsStatusCmd = &cobra.Command{
 	RunE:  runCommandsStatus,
 }
 
+var commandsCancelCmd = &cobra.Command{
+	Use:   "cancel [command_id]",
+	Short: "Cancel a running command",
+	Long: `Cancel a running command job.
+
+Examples:
+  # Cancel a single command
+  open-notebook commands cancel <command_id>`,
+	Args: cobra.ExactArgs(1),
+	RunE:  runCommandsCancel,
+}
+
 func init() {
 	commandsCmd.AddCommand(commandsListCmd)
 	commandsCmd.AddCommand(commandsStatusCmd)
+	commandsCmd.AddCommand(commandsCancelCmd)
 	rootCmd.AddCommand(commandsCmd)
 
 	commandsListCmd.Flags().StringVar(&commandFilter, "command", "", "Filter by command name")
@@ -132,4 +145,25 @@ func getStringValue(m map[string]interface{}, key string) string {
 		return v
 	}
 	return ""
+}
+
+func runCommandsCancel(cmd *cobra.Command, args []string) error {
+	client := getClient()
+
+	commandID := args[0]
+
+	var result map[string]interface{}
+	err := client.Delete("/api/commands/jobs/"+commandID, &result)
+	if err != nil {
+		return fmt.Errorf("failed to cancel command: %w", err)
+	}
+
+	cancelled, ok := result["cancelled"].(bool)
+	if ok && cancelled {
+		fmt.Printf("Command %s cancelled successfully\n", commandID)
+	} else {
+		fmt.Printf("Command %s: cancelled=%v\n", commandID, result["cancelled"])
+	}
+
+	return nil
 }

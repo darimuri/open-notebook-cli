@@ -76,6 +76,12 @@ func extractLinks(n *nethtml.Node, base *url.URL, links *[]Link) {
 				// Check if internal (same domain)
 				isInternal := parsedURL.Host == "" || parsedURL.Host == base.Host
 
+				// Skip non-http(s) schemes (mailto, tel, etc.)
+				scheme := strings.ToLower(parsedURL.Scheme)
+				if scheme != "" && scheme != "http" && scheme != "https" {
+					continue
+				}
+
 				*links = append(*links, Link{
 					URL:        absoluteURL,
 					Text:       getLinkText(n),

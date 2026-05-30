@@ -15,16 +15,18 @@ import (
 )
 
 var (
-	recursive       bool
-	maxDepth        int
-	maxCount        int
-	pollingPeriod   int
-	sourceNotebook  string
-	sourceFile      string
-	skipEmbed       bool
-	pageFlag        int
-	continueOnError bool
-	embedTimeout    time.Duration
+	recursive           bool
+	maxDepth            int
+	maxCount            int
+	pollingPeriod       int
+	sourceNotebook      string
+	sourceFile          string
+	skipEmbed           bool
+	pageFlag            int
+	continueOnError     bool
+	embedTimeout        time.Duration
+	excludePathContains []string
+	asyncProcessing     bool
 )
 
 var sourcesCmd = &cobra.Command{
@@ -64,8 +66,19 @@ Examples:
   open-notebook sources add --text "Some important notes"
 
   # Add to specific notebook
-  open-notebook sources add -n notebook-id https://example.com`,
+  open-notebook sources add -n notebook-id https://example.com
+
+Note: --async and --recursive (-r) are mutually exclusive and cannot be used together.
+      Async processing submits sources individually and returns immediately, which is
+      incompatible with recursive crawling that processes multiple URLs in sequence.`,
 	RunE: runSourcesAdd,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		// --async와 --recursive는 배타적 - 함께 사용할 수 없음
+		if asyncProcessing && recursive {
+			return fmt.Errorf("--async and --recursive (-r) are mutually exclusive: async processing submits sources individually and returns immediately, which is incompatible with recursive crawling behavior")
+		}
+		return nil
+	},
 }
 
 var sourcesUploadCmd = &cobra.Command{
@@ -101,6 +114,21 @@ var sourcesGetCmd = &cobra.Command{
 	Short: "Get a single source with all details including embed status",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runSourcesGet,
+}
+
+var sourcesDeleteCmd = &cobra.Command{
+	Use:   "delete [source_id...]",
+	Short: "Delete source(s)",
+	Long: `Delete source(s) permanently.
+
+Examples:
+  # Delete a single source
+  open-notebook sources delete <source_id>
+
+  # Delete multiple sources at once
+  open-notebook sources delete <source_id_1> <source_id_2> <source_id_3>`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: runSourcesDelete,
 }
 
 var sourcesEmbedCmd = &cobra.Command{
@@ -139,6 +167,7 @@ func init() {
 	sourcesCmd.AddCommand(sourcesRetryCmd)
 	sourcesCmd.AddCommand(sourcesInsightsCmd)
 	sourcesCmd.AddCommand(sourcesGetCmd)
+	sourcesCmd.AddCommand(sourcesDeleteCmd)
 	sourcesCmd.AddCommand(sourcesEmbedCmd)
 	sourcesCmd.AddCommand(sourcesEmbedBatchCmd)
 	rootCmd.AddCommand(sourcesCmd)
@@ -153,6 +182,8 @@ func init() {
 	sourcesAddCmd.Flags().StringVarP(&sourceFile, "file", "f", "", "Read URLs from file (one per line)")
 	sourcesAddCmd.Flags().String("text", "", "Add text content as source")
 	sourcesAddCmd.Flags().BoolVar(&skipEmbed, "skip-embed", false, "Skip embedding (default: embed)")
+	sourcesAddCmd.Flags().StringArrayVar(&excludePathContains, "exclude-path-contains", nil, "Exclude URLs containing this string (case-sensitive, can be repeated)")
+	sourcesAddCmd.Flags().BoolVar(&asyncProcessing, "async", false, "Use async processing (submit and return immediately)")
 
 	sourcesEmbedBatchCmd.Flags().StringVarP(&sourceNotebook, "notebook", "n", "", "Notebook ID to filter sources")
 	sourcesEmbedBatchCmd.Flags().IntVar(&maxCount, "max", 0, "Maximum number of sources to embed (0 = all)")
@@ -240,8 +271,9 @@ func runSourcesAdd(cmd *cobra.Command, args []string) error {
 
 func addTextSource(client *api.Client, text string) error {
 	req := api.SourceCreate{
-		Type:    "text",
-		Content: text,
+		Type:            "text",
+		Content:         text,
+		AsyncProcessing: asyncProcessing,
 	}
 
 	if sourceNotebook != "" {
@@ -303,8 +335,9 @@ func addSources(client *api.Client, urls []string) error {
 
 	for _, url := range urls {
 		req := api.SourceCreate{
-			Type: "link",
-			URL:  url,
+			Type:            "link",
+			URL:             url,
+			AsyncProcessing: asyncProcessing,
 		}
 
 		if sourceNotebook != "" {
@@ -329,6 +362,15 @@ func addSources(client *api.Client, urls []string) error {
 	return nil
 }
 
+func shouldExclude(url string) bool {
+	for _, exclude := range excludePathContains {
+		if strings.Contains(url, exclude) {
+			return true
+		}
+	}
+	return false
+}
+
 func addSourcesRecursive(client *api.Client, startURLs []string) error {
 	visited := make(map[string]bool)
 	var queue []string
@@ -336,7 +378,7 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 	// Initialize queue with starting URLs
 	for _, url := range startURLs {
 		normalized := crawler.NormalizeURL(url)
-		if !visited[normalized] {
+		if !visited[normalized] && !shouldExclude(normalized) {
 			visited[normalized] = true
 			queue = append(queue, normalized)
 		}
@@ -360,7 +402,7 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 		// Fetch page
 		resp, err := http.Get(url)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  Failed to fetch: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  Failed to fetch %s: %v\n", url, err)
 			failed++
 			continue
 		}
@@ -368,7 +410,7 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 		body, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  Failed to read body: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  Failed to read body %s: %v\n", url, err)
 			failed++
 			continue
 		}
@@ -387,7 +429,7 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 		var result api.SourceResponse
 		err = client.Post("/api/sources/json", req, &result)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  Failed to add source: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  Failed to add source %s: %v\n", url, err)
 			failed++
 		} else {
 			fmt.Printf("  Added: %s (id: %s)\n", url, result.ID)
@@ -397,13 +439,13 @@ func addSourcesRecursive(client *api.Client, startURLs []string) error {
 		// Extract internal links
 		links, err := crawler.ExtractLinks(url, string(body))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  Failed to extract links: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  Failed to extract links from %s: %v\n", url, err)
 			continue
 		}
 
 		// Add internal links to queue
 		for _, link := range links {
-			if link.IsInternal && !visited[link.URL] {
+			if link.IsInternal && !visited[link.URL] && !shouldExclude(link.URL) {
 				visited[link.URL] = true
 				queue = append(queue, link.URL)
 			}
@@ -490,6 +532,27 @@ func runSourcesGet(cmd *cobra.Command, args []string) error {
 	}
 
 	return outputJSON(result)
+}
+
+func runSourcesDelete(cmd *cobra.Command, args []string) error {
+	client := getClient()
+	deleted := 0
+	failed := 0
+	for _, sourceID := range args {
+		err := client.Delete("/api/sources/"+sourceID, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to delete %s: %v\n", sourceID, err)
+			failed++
+		} else {
+			fmt.Printf("Deleted: %s\n", sourceID)
+			deleted++
+		}
+	}
+	fmt.Printf("\nDeleted: %d, Failed: %d\n", deleted, failed)
+	if failed > 0 {
+		return fmt.Errorf("failed to delete %d source(s)", failed)
+	}
+	return nil
 }
 
 func runSourcesEmbed(cmd *cobra.Command, args []string) error {

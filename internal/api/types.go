@@ -84,11 +84,12 @@ type SourceResponse struct {
 }
 
 type SourceCreate struct {
-	Notebooks []string `json:"notebooks,omitempty"`
-	Type     string   `json:"type"`
-	URL      string   `json:"url,omitempty"`
-	Content  string   `json:"content,omitempty"`
-	Embed    *bool    `json:"embed,omitempty"`
+	Notebooks        []string `json:"notebooks,omitempty"`
+	Type            string   `json:"type"`
+	URL             string   `json:"url,omitempty"`
+	Content         string   `json:"content,omitempty"`
+	Embed           *bool    `json:"embed,omitempty"`
+	AsyncProcessing bool     `json:"async_processing,omitempty"`
 }
 
 type SourceStatusResponse struct {
